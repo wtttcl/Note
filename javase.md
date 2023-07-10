@@ -1,4 +1,6 @@
-### 计算机硬件组成
+# 背景知识
+
+## 计算机硬件组成
 
 计算机硬件组成：输入设备、输出设备、控制器、运算器、存储器
 
@@ -10,23 +12,25 @@
 
 - 输出设备：显示器 + 打印机
 
-### 计算机软件
+## 计算机软件
 
-系统软件：操作系统（windows、linux、mac）
+### 系统软件
 
-应用软件可以被分为两种形式，
+操作系统（windows、linux、mac）
 
-#### 应用软件
+### 应用软件
 
-C/S：client/server 客户端/服务器端
+可以被分为两种形式，
 
-在用户本地有一个客户端程序，在远程有一个服务器端程序（QQ、微信）
+- C/S：client/server 客户端/服务器端
 
-B/S：browser/server浏览器/服务器端
+  在用户本地有一个客户端程序，在远程有一个服务器端程序（QQ、微信）
 
-只需要一个浏览器，用户通过不同网址，访问不同的服务器端程序（京东、淘宝）
+- B/S：browser/server浏览器/服务器端
 
-### 计算机语言
+  只需要一个浏览器，用户通过不同网址，访问不同的服务器端程序（京东、淘宝）
+
+## 计算机语言
 
 机器语言：0/1代码
 
@@ -34,7 +38,7 @@ B/S：browser/server浏览器/服务器端
 
 高级语言
 
-### 人机交互
+## 人机交互
 
 - 图形化界面
 
@@ -52,27 +56,27 @@ B/S：browser/server浏览器/服务器端
   exit 	# 退出命令行
   ```
 
-### Java版本
+## Java版本
 
-- Java SE：
+### Java SE：
 
-  Java语言的标准版，用于桌面应用开发，是其他两个版本的基础。
+Java语言的标准版，用于桌面应用开发，是其他两个版本的基础。
 
-  桌面应用：用户只要打开程序，程序的界面会让用户在最短的时间内找到他们需要的功能，同时主动带领用户完成他们的工作并得到最好的体验。
+桌面应用：用户只要打开程序，程序的界面会让用户在最短的时间内找到他们需要的功能，同时主动带领用户完成他们的工作并得到最好的体验。
 
-- Java ME：
+### Java ME：
 
-  Java语言的小型版，用于嵌入式消费类电子设备。
+Java语言的小型版，用于嵌入式消费类电子设备。
 
-- Java EE：
+### Java EE：
 
-  Java语言的企业版，用于Web方向的网站开发。
+Java语言的企业版，用于Web方向的网站开发。
 
-  网页：通过浏览器将 **数据展示** 在用户面前，跟后台服务器没有交互
+网页：通过浏览器将 **数据展示** 在用户面前，跟后台服务器没有交互
 
-  网站：通过跟 **后台服务器的交互** ，将查询到的真实数据再通过网页展示出来。网站 = 网页 + 后台服务器。
+网站：通过跟 **后台服务器的交互** ，将查询到的真实数据再通过网页展示出来。网站 = 网页 + 后台服务器。
 
-### Java跨平台工作原理
+## Java跨平台工作原理
 
 平台：操作系统（windows、linux、mac）
 
@@ -80,7 +84,7 @@ B/S：browser/server浏览器/服务器端
 
 Java跨平台工作原理：Java本质上是运行在操作系统的 **JVM虚拟机** 上，只要操作系统安装了 JVM虚拟机 即可。**ps. JVM虚拟机本身不允许跨平台，允许跨平台的是Java程序。**
 
-### JRE 和 JDK
+## JRE 和 JDK
 
 JRE： Java Runtime Environment，指Java运行环境，**包括 JVM虚拟机**以及 Java 核心类库（一个java文件就是一个类，类库指存放多个 java 文件的仓库）。
 
@@ -90,14 +94,14 @@ JDK：Java Development Kit，是Java语言的软件开发工具包，内部包�
 
 ![image-20230703104151201](./assets/image-20230703104151201.png)
 
-#### JRE、JDK、JVM的作用
+### JRE、JDK、JVM的作用
 
 - 编写代码的过程中，需要使用 JRE 中 Java已经写好的代码
 - 编译代码的过程中，需要使用 JDK 中的翻译工具。
 - 运行代码的过程中，需要使用 JDK 中的运行工具。
 - 代码需要运行在 JVM 当中。
 
-#### JDK、JRE、JVM的关系
+### JDK、JRE、JVM的关系
 
 ![image-20230625144744663](./assets/image-20230625144744663.png)
 
@@ -123,9 +127,11 @@ java：运行工具，命令行执行
 java xxx
 ```
 
-![image-20230703105609984](./assets/image-20230703105609984.png)
+<img src="./assets/image-20230703105609984.png" alt="image-20230703105609984" style="zoom:80%;" />
 
 **ps. 若代码中没有 main 方法，则无法运行。**
+
+
 
 ## path 环境变量
 
@@ -202,6 +208,8 @@ com.itheima --> com文件夹下itheima文件夹
 
 # 基础知识
 
+
+
 ## 面向对象的三大特征
 
 ### 封装
@@ -212,8 +220,6 @@ com.itheima --> com文件夹下itheima文件夹
 
 - 将代码抽取到方法中（对代码封装）
 - 将属性抽取到类中（对数据封装）
-
-
 
 ### 继承
 
@@ -294,7 +300,7 @@ com.itheima --> com文件夹下itheima文件夹
 
 
 
-## 键盘录入变量值
+### 键盘录入变量值
 
 ```java
 import java.util.Scanner;
@@ -530,11 +536,75 @@ switch(expression)
 
 ps. case 后只能是常量，且不能重复
 
-## 循环结构
+### 循环结构
+
+#### for 循环
+
+循环体中定义的变量，在每一轮循环结束后都会被释放掉
+
+```java
+for(int i = 1; i <= 5; i++) 	//先赋值，再判断，再进入循环语句
+{
+    // 循环体
+}
+```
+
+![image-20230710112043105](./assets/image-20230710112043105.png)
+
+#### while 循环
+
+```java
+while(条件判断)
+{
+    // 循环体
+    // 条件控制
+}
+```
 
 
 
-# 类型转换
+#### do...while 循环
+
+无论判断条件是否满足，都至少执行一次循环体。
+
+```java
+do{
+    // 循环体
+    // 条件控制
+}while(条件判断)
+```
+
+### 跳转控制语句
+
+- break：结束一级循环或switch。**在循环或switch中使用。**
+- continue：跳过当前一轮循环。**只能在循环中使用。**
+
+
+
+使用标号：
+
+- break
+
+  ```java
+  abc: for(int i = 0; i < 5; i++)
+       {
+        	for(int j = 0; j < 3; j++)
+          {
+          	if( j == 1)
+              {
+                  break abc; 	// 直接跳出标号的循环
+              }
+              System.out.println("i: " + i + " j: " + j);
+          }
+      }
+  /*
+  i: 0 j: 0
+  */
+  ```
+
+  
+
+## 类型转换
 
 ### 隐式转换
 
@@ -577,34 +647,19 @@ ps. case 后只能是常量，且不能重复
 
 
 
+# Java 内存模型
+
+- 堆内存：保存程序运行时产生的对象。
+- 方法区：保存方法。
+- 栈内存：保存程序运行时所有方法执行状态（ **包括方法中产生的对象** ）。方法被执行后就会进入栈内存。
+- 本地方法栈：管理一些特殊方法。
+- 寄存器
+
+<img src="./assets/image-20230706144202745.png" alt="image-20230706144202745" style="zoom:67%;" />
+
+
+
 # 类和对象
-
-
-
-
-## 举个例子：四句代码出窗体
-
-```java
-import javax.swing.*;
-
-public class App {
-    public static void main(String[] args) {
-        JFrame frame = new JFrame(); 	// IDEA 识别到这条语句时会自动导包
-
-        frame.setSize(514,538);     // 设置窗体长宽
-
-        frame.setLocationRelativeTo(null);  // 居中
-
-        frame.setAlwaysOnTop(true);     // 置顶
-
-        frame.setDefaultCloseOperation(3);  //关闭模式，关闭窗体即结束程序
-
-        frame.setTitle("2048 小游戏");     //设置窗体 title
-
-        frame.setVisible(true);     // 设置窗口可见，这条语句要放在最后执行
-    }
-}
-```
 
 
 
@@ -625,9 +680,7 @@ public class Student {
         System.out.println("====== student ======");
     }
 }
-```
 
-```java
 public class TestStudent {
     public static void main(String[] args) {
         Student stu = new Student();
@@ -656,7 +709,7 @@ public class TestStudent {
 
 ### 成员变量和局部变量的区别
 
-![image-20230706145431086](./assets/image-20230706145431086.png)
+<img src="./assets/image-20230706145431086.png" alt="image-20230706145431086"  />
 
 
 
@@ -690,18 +743,18 @@ public class TestStudent {
 
 
 
-### this 关键字 
+## this 关键字 
 
 - 指向当前对象，this 代表当前对象的引用，值为当前对象的地址。
 - 可调用对象的成员变量和成员方法。
 
 - 区分局部变量和成员变量的重名。
 
-![image-20230707131609869](./assets/image-20230707131609869.png)
+<img src="./assets/image-20230707131609869.png" alt="image-20230707131609869" style="zoom:67%;" />
 
 
 
-### 权限修饰符
+## 权限修饰符
 
 - public：同一个类、同一个包、**不同的包**。
 - private：只能在类中访问。
@@ -710,28 +763,25 @@ public class TestStudent {
 
 
 
-### 方法重载
+## 方法重载
 
 Java 虚拟机会通过 **参数的不同** 来 **区分同名方法**。
 
-ps. 同样地参数类型，但是不用的顺序也会构成重载，但是意义不大。
+<!--ps. 同样地参数类型，但是不用的顺序也会构成重载，但是意义不大。-->
 
 
 
-### 构造方法
+## 构造方法
 
 - 在创建对象时对成员变量进行初始化，可以重载。
-- java 提供一个默认的、无参数的构造方法。但是如果显式定义了构造方法，系统将不再提供默认的构造方法，因此，建议 **显式定义无参数的和有参数的构造方法**。
+- java 提供一个默认的、无参数的构造方法。但是 **如果显式定义了构造方法，系统将不再提供默认的构造方法**，因此，建议 **显式定义无参数的和有参数的构造方法**。
 
 ```java
 public class Student {
     String name;
     int age;
 	
-    public Student()
-    {
-        
-    }
+    public Student(){}
     
     public Student(String name, int age)
     {
@@ -757,9 +807,9 @@ name: xxx    age: 18
 
 
 
-![image-20230707133532215](./assets/image-20230707133532215.png)
+<img src="./assets/image-20230707133532215.png" alt="image-20230707133532215" style="zoom: 80%;" />
 
-### 标准的 JavaBean 类
+## 标准的 JavaBean 类
 
 - 成员变量使用 private 修饰
 - 构造方法提供一个无参的和一个带参的
@@ -796,11 +846,7 @@ public class Student {
         return age;
     }
 }
-```
 
-
-
-```java
 public class TestStudent {
     public static void main(String[] args) {
         Student stu = new Student();
@@ -816,41 +862,163 @@ public class TestStudent {
 
 
 
+## 方法在 Java 内存中的表示
+
+
+
 ### 对象作为形参在方法中传递
 
 对象在方法中作为参数传递时，传递的本质上是记录该对象的地址。
 
-![image-20230707135328149](./assets/image-20230707135328149.png)
+<img src="./assets/image-20230707135328149.png" alt="image-20230707135328149" style="zoom: 80%;" />
 
-# Java 内存模型
 
-- 堆内存：保存程序运行时产生的对象
-- 方法区：保存方法。
-- 栈内存：保存程序运行时所有方法执行状态（ **包括方法中产生的对象** ）。方法被执行后就会进入栈内存。
-- 本地方法栈：管理一些特殊方法
-- 寄存器
 
-![image-20230706144202745](./assets/image-20230706144202745.png)
+
 
 ### 方法调用过程
 
-![image-20230706145120462](./assets/image-20230706145120462.png)
+<img src="./assets/image-20230706145120462.png" alt="image-20230706145120462" style="zoom: 80%;" />
 
 
 
 ### 带参数的成员方法调用过程
 
+<img src="./assets/image-20230706150523215.png" alt="image-20230706150523215" style="zoom: 80%;" />
 
 
-![image-20230706150523215](./assets/image-20230706150523215.png)
 
 ### 带返回值的成员方法调用过程
 
-![image-20230706150835984](./assets/image-20230706150835984.png)
+<img src="./assets/image-20230706150835984.png" alt="image-20230706150835984" style="zoom: 80%;" />
 
 
 
+# API
 
+API (Application Programming Interface)：应用程序变成接口
+
+
+
+# 窗体结构
+
+
+
+## 窗体
+
+```java
+import javax.swing.*;
+
+public class App {
+    public static void main(String[] args) {
+        JFrame frame = new JFrame(); 	// IDEA 识别到这条语句时会自动导包
+
+        frame.setSize(514,538);     // 设置窗体长宽
+
+        frame.setLocationRelativeTo(null);  // 居中
+
+        frame.setAlwaysOnTop(true);     // 置顶
+
+        frame.setDefaultCloseOperation(3);  //关闭模式，关闭窗体即结束程序
+
+        frame.setTitle("2048 小游戏");     //设置窗体 title
+
+        frame.setVisible(true);     // 设置窗口可见，这条语句要放在最后执行
+    }
+}
+```
+
+
+
+<img src="./assets/image-20230710110349441.png" alt="image-20230710110349441"  />
+
+
+
+## 组件  
+
+若多个组件被摆放在同一个位置，**后添加的组件会被压在底部**。
+
+### JButton
+
+```java
+public class DemoJButton {
+    public static void main(String[] args) {
+        JFrame frame = new JFrame();
+
+        frame.setSize(514,538);     // 设置窗体长宽
+        frame.setLocationRelativeTo(null);  // 居中
+        frame.setAlwaysOnTop(true);     // 置顶
+        frame.setDefaultCloseOperation(3);  //关闭模式，关闭窗体即结束程序
+        frame.setTitle("2048 小游戏");     //设置窗体 title
+
+        // 通过窗体对象，取消默认布局（默认居中占满窗体）
+        frame.setLayout(null);
+        
+        // 创建按钮对象（空参构造）
+        JButton btn = new JButton();
+        // 因为取消了默认布局，所以要自己设定布局
+        btn.setBounds(50, 50, 100, 100);    // (x, y): 左上角
+        
+        // 创建按钮对象（带参构造）
+        JButton btn2 = new JButton("touch me!");
+        btn2.setBounds(150, 150, 100, 100);
+        
+        // 通过窗体对象，获取面板对象，并调用 add 方法添加组件
+        frame.getContentPane().add(btn);
+        frame.getContentPane().add(btn2);
+
+        frame.setVisible(true);     // 窗体可见
+    }
+}
+```
+
+<img src="./assets/image-20230710110020787.png" alt="image-20230710110020787" style="zoom:67%;" />
+
+### JLabel
+
+展示文本或图片。
+
+```java
+public class DemoJLabel {
+    public static void main(String[] args) {
+        JFrame frame = new JFrame();
+
+        frame.setSize(514,538);     // 设置窗体长宽
+        frame.setLocationRelativeTo(null);  // 居中
+        frame.setAlwaysOnTop(true);     // 置顶
+        frame.setDefaultCloseOperation(3);  //关闭模式，关闭窗体即结束程序
+        frame.setTitle("2048 小游戏");     //设置窗体 title
+
+        // 通过窗体对象，取消默认布局（默认居中占满窗体）
+        frame.setLayout(null);
+
+        // 创建 JLabel 对象（空参构造），空参不显示
+        JLabel jl = new JLabel();
+        // 因为取消了默认布局，所以要自己设定布局
+        jl.setBounds(50, 50, 100, 100);    // (x, y): 左上角
+
+        // 创建 JLabel 展示文本
+        JLabel jl1 = new JLabel("I'm a label!");
+        // 因为取消了默认布局，所以要自己设定布局
+        jl1.setBounds(150, 150, 100, 100);    // (x, y): 左上角
+
+        // 创建 JLabel 展示图片
+        ImageIcon icon = new ImageIcon("D:\\tmp_dataset\\original_data\\000000.jpg");
+        JLabel jl2 = new JLabel(icon);
+        // 因为取消了默认布局，所以要自己设定布局
+        jl2.setBounds(250, 250, 200, 200);    // (x, y): 左上角
+
+        // 通过窗体对象，获取面板对象，并调用 add 方法添加组件
+        frame.getContentPane().add(jl);
+        frame.getContentPane().add(jl1);
+        frame.getContentPane().add(jl2);
+
+        frame.setVisible(true);     // 窗体可见
+    }
+}
+```
+
+<img src="./assets/image-20230710111137156.png" alt="image-20230710111137156" style="zoom:67%;" />
 
 
 
