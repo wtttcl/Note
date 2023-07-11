@@ -172,6 +172,8 @@ IDEA，全称 IntelliJ IDEA，适用于 java 语言开发的集成环境。
 
 删除：右键 - delete **（无法在回收站找回）**
 
+<!--ps. 一个 JavaClass 只可以包含一个被 public 修饰的 class，但是可以包含多个 class。-->
+
 ### 模块的修改
 
 新建：file - project structure
@@ -207,23 +209,6 @@ com.itheima --> com文件夹下itheima文件夹
 
 
 # 基础知识
-
-
-
-## 面向对象的三大特征
-
-### 封装
-
-隐藏实现细节，仅对外暴露公共的访问方式。
-
-常见形式：
-
-- 将代码抽取到方法中（对代码封装）
-- 将属性抽取到类中（对数据封装）
-
-### 继承
-
-### 多态
 
 
 
@@ -1022,6 +1007,232 @@ public class DemoJLabel {
 
 
 
+# 数组
+
+一种容器，存储同种数据类型的多个元素。
+
+## 定义
+
+```java
+// 数据类型[] 数组名 (推荐)
+int[] array;
+
+// 数据类型 数组名[]
+int array[];
+```
+
+
+
+## 初始化
+
+### 静态初始化 - 指定数组的元素，系统根据元素明确数组长度
+
+```java
+int[] arr = new int[]{11, 22, 33};
+
+double[] arr = new double[]{11.1, 22.2, 33.3};
+
+// 简写形式
+int[] arr = {11, 22, 33};
+```
+
+### 动态初始化 - 只指定数组的长度，系统分配默认初始值
+
+```java
+int[] arr = new int[10]；
+```
+
+
+
+### 输出和遍历
+
+- 直接输出数组
+
+  返回的是数组容器在内存中的地址。
+
+  <!--ps. 未初始化的数组无法打印。-->
+
+- 遍历数组 （利用 **array.length** ）
+
+  ```java
+  for(int i = 0; i < arr.length; i++)
+  {
+      System.out.println(arr[i]);
+  }
+  ```
+
+
+
+## 数组内存图
+
+有 new 就是在堆内存中开辟空间。
+
+### 动态初始化
+
+<img src="./assets/image-20230711151907076.png" alt="image-20230711151907076" style="zoom: 67%;" />
+
+
+
+<img src="./assets/image-20230711151930718.png" alt="image-20230711151930718" style="zoom: 67%;" />
+
+
+
+### 静态初始化
+
+<img src="./assets/image-20230711152042250.png" alt="image-20230711152042250" style="zoom: 67%;" />
+
+
+
+### 两个数组指向相同内存 （即两个数组地址相同）
+
+<img src="./assets/image-20230711152244294.png" alt="image-20230711152244294" style="zoom:67%;" />
+
+<img src="./assets/image-20230711152324528.png" alt="image-20230711152324528" style="zoom:67%;" />
+
+
+
+# 二维数组
+
+## 初始化
+
+### 静态初始化
+
+```java
+int[][] arr = new int[][]{{1, 2}, {3, 4}};
+
+// 简写形式
+int[][] arr = {{1, 2}, {3, 4}};
+```
+
+### 动态初始化
+
+```java
+int[][] arr = new int[m][n];
+```
+
+
+
+## 二维数组内存图
+
+### 动态初始化
+
+<img src="./assets/image-20230711153201455.png" alt="image-20230711153201455" style="zoom:67%;" />
+
+# 方法重写
+
+方法重写：子类中出现了和父类中完全相同的方法声明（包括方法名和参数），相当于覆盖。
+
+
+
+
+
+# 面向对象的三大特征
+
+## 封装
+
+隐藏实现细节，仅对外暴露公共的访问方式。
+
+常见形式：
+
+- 将代码抽取到方法中（对代码封装）
+- 将属性抽取到类中（对数据封装）
+
+
+
+## 继承
+
+子类（派生类）可以直接使用父类（基类、超类）中的 **非私有** 成员。
+
+```java
+public class 子类 extends 父类 {}
+```
+
+
+
+### 举个例子
+
+```java
+public class TestExtends {
+    public static void main(String[] args) {
+        Coder c = new Coder();
+        c.setName("xxx");
+        System.out.println(c.getName());
+    }
+}
+
+class Employee{
+    private String name;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+}
+
+class Coder extends Employee{
+
+}
+```
+
+
+
+### 优点和缺点
+
+#### 优点
+
+- 提高代码的复用性。
+- 提高代码的维护性。
+- 让类与类之间产生关系，是多态的前提。
+
+#### 缺点
+
+- 增加了代码的耦合性（代码与代码之间的关联）。
+
+#### Java 中继承的特点
+
+- 只支持单继承，不支持多继承（即继承多个父类，避免方法冲突），但支持多层继承。
+
+
+
+### 成员变量和成员方法
+
+- 若子类和父类中出现重名的成员变量，根据 **就近原则**，子类会使用自己的成员变量。若要调用父类的成员变量，可以使用 **super** 关键字。
+
+  ```java
+  public class TestExtends {
+      public static void main(String[] args) {
+          Zi z = new Zi();
+          z.test();
+      }
+  }
+  
+  class Fu{
+      int num = 10;
+  }
+  
+  class Zi extends Fu{
+      int num = 20;
+  
+      public void test ()
+      {
+          int num = 30;
+          System.out.println(num);    // 30
+          System.out.println(this.num);    // 20
+          System.out.println(super.num);    // 10
+      }
+  }
+  ```
+
+  
+
+- 若子类和父类中出现重名的成员方法，本质上是子类对父类的方法进行了 **方法重写**，子类会使用自己的成员方法。
+
+
+
+## 多态
 
 
 
@@ -1033,12 +1244,7 @@ public class DemoJLabel {
 
 
 
-
-
-
-
-
-## 快捷方式
+# 快捷方式
 
 - pvsm + enter : main方法
 
