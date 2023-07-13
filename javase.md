@@ -222,7 +222,10 @@ com.itheima --> com文件夹下itheima文件夹
 
 字符串常量（双引号）、整数常量、小数常量、字符常量（单个字符/单个汉字，单引号）、布尔常量（true/false）、空常量（null，不能直接打印）。
 
+### 命名规范
 
+- 一个单词：所有字母大写
+- 多个单词：所有字母大写，中间用 _ 分割
 
 ### 进制书写格式（jdk7版本后才支持）
 
@@ -741,12 +744,17 @@ public class TestStudent {
 
 ## 权限修饰符
 
-- public：同一个类、同一个包、**不同的包**。
-- private：只能在类中访问。
-- (default)：默认，在同一个类中、**同一个包**下进行访问。
-- protected：
+- public：同一个包、**不同的包** 中都能访问
 
+- private：只能在本类中访问。
 
+- (default)：默认，在 **同一个包** 下进行访问。
+
+- protected：同一个包或不同包下的子类可以访问。
+
+  <img src="./assets/image-20230713093406770.png" alt="image-20230713093406770" style="zoom:80%;" />
+
+  
 
 ## 方法重载
 
@@ -1120,11 +1128,54 @@ int[][] arr = new int[m][n];
 
 # 方法重写
 
-方法重写：子类中出现了和父类中完全相同的方法声明（包括方法名和参数），相当于覆盖。
+方法重写：在继承体系中，子类中出现了和父类中完全相同的方法声明（包括 **方法名和参数** ），相当于覆盖。当子类需要父类功能，而子类又需要自己特有的内容的时候，可以方法重写。
+
+```java
+public class IPearV1 {
+    public void call(String name)
+    {
+        System.out.println("calling");
+    }
+
+    public void smallBlack()
+    {
+        System.out.println("Speak in English");
+    }
+}
+
+public class IPearV2 extends IPearV1 {
+    @Override   // 检查当前方法是否为方法重写
+    public void smallBlack()
+    {
+        super.smallBlack();     // 调用父类功能
+        System.out.println("Speak in Chinese");
+    }
+}
+
+public class TestOverride {
+    public static void main(String[] args) {
+        IPearV2 i = new IPearV2();
+        i.smallBlack();
+    }
+}
+
+/*
+Speak in English
+Speak in Chinese
+*/
+```
 
 
 
+## 注意事项
 
+- 父类中的私有方法不能被重写
+
+- 子类重写父类方法时，访问权限必须 **大于等于** 父类（最好保持一致）
+
+  <img src="./assets/image-20230713093231650.png" alt="image-20230713093231650" style="zoom: 80%;" />
+
+  
 
 # 面向对象的三大特征
 
@@ -1230,6 +1281,115 @@ class Coder extends Employee{
 
 - 若子类和父类中出现重名的成员方法，本质上是子类对父类的方法进行了 **方法重写**，子类会使用自己的成员方法。
 
+### 继承中构造方法的访问特点
+
+- **子类不能继承父类的构造方法，因为构造方法要求必须和类名保持一致。**
+
+- 子类在初始化前，会先隐含调用 **父类的空参数构造方法** 。（在所有的构造方法中，都 **默认隐藏着 `super();`** 这句代码）
+
+- 若父类没有空参方法，则代码会报错。
+
+  - 子类可以使用 `super` 关键字手动访问父类的带参构造方法。
+
+    ```java
+    public class Test {
+        public static void main(String[] args) {
+            Zi z = new Zi(10);
+        }
+    }
+    
+    class Fu{
+        private int num;
+    
+        public Fu(int num)
+        {
+            this.num = num;
+            System.out.println("This is Fu's constructor! num = " + num);
+        }
+    }
+    
+    class Zi extends Fu{
+        public Zi(int num){
+            super(num);
+            System.out.println("This is Zi's constructor! num = " + num);
+        }
+    }
+    
+    /*
+    This is Fu's constructor! num = 10
+    This is Zi's constructor! num = 10
+    */
+    ```
+
+    
+
+  - 子类可以使用 `this` 关键字调用本类的其他构造方法，再在其他构造方法中使用 `super` 关键字手动调用父类的带参构造方法。
+
+    ```java
+    public class Test {
+        public static void main(String[] args) {
+            Zi z = new Zi(10);
+        }
+    }
+    
+    class Fu{
+        private int num;
+    
+        public Fu(int num)
+        {
+            this.num = num;
+            System.out.println("This is Fu's constructor! num = " + num);
+        }
+    }
+    
+    class Zi extends Fu{
+        public Zi(){
+            this(10);
+        }
+        public Zi(int num){
+            super(num);
+            System.out.println("This is Zi's constructor! num = " + num);
+        }
+    }
+    
+    /*
+    This is Fu's constructor! num = 10
+    This is Zi's constructor! num = 10
+    */
+    ```
+
+    <!--this 和  super 必须放在构造函数的第一行，二者不能共存。-->
+
+- Java 中所有的类都继承了 **Object** 类（最顶层父类）。
+
+
+
+### 继承中构造方法在内存中的执行流程
+
+<img src="./assets/image-20230713100502476.png" alt="image-20230713100502476" style="zoom:67%;" />
+
+<img src="./assets/image-20230713100548866.png" alt="image-20230713100548866" style="zoom:67%;" />
+
+<img src="./assets/image-20230713100634311.png" alt="image-20230713100634311" style="zoom:67%;" />
+
+<img src="./assets/image-20230713100745916.png" alt="image-20230713100745916" style="zoom:67%;" />
+
+<img src="./assets/image-20230713100714422.png" alt="image-20230713100714422" style="zoom:67%;" />
+
+### 继承的方法在内存中的执行流程
+
+<img src="./assets/image-20230713100850122.png" alt="image-20230713100850122" style="zoom:67%;" />
+
+### this 和 super
+
+this：代表奔雷对象的引用
+
+super：代表父类存储空间的标识（可理解为父类对象的引用）
+
+<img src="./assets/image-20230713101028882.png" alt="image-20230713101028882" style="zoom: 80%;" />
+
+ps. 若子类调用父类的方法，且子类中没有该方法的重写，`super` 关键字可以省略不写。
+
 
 
 ## 多态
@@ -1238,7 +1398,20 @@ class Coder extends Employee{
 
 
 
+# final 关键字
 
+修饰方法、变量、类。
+
+- 修饰变量：表名该变量是常量，不能被再次赋值。
+
+  - 修饰基本数据类型，其值不可再次更改。
+
+  - 修饰引用数据变量，地址值不可再次更改，但是其中的值可以更改。
+  - 修饰成员变量，要么在修饰处直接赋值，要么在构造方法中完成赋值。
+
+- 修饰方法：表名该方法是最终方法，不能被重写。（一般修饰父类的核心方法）
+
+- 修饰类：表名该类是最终类，不能被继承。
 
 
 
