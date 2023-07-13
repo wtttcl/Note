@@ -887,9 +887,69 @@ public class TestStudent {
 
 
 
-# API
+# 接口 - API
 
-API (Application Programming Interface)：应用程序变成接口
+API (Application Programming Interface)：应用程序编程接口。声明规则。
+
+如果一个类中只有抽象方法，那么可以将这个类改写成接口。
+
+```java
+public abstract class Inter{
+    public abstract void method1();
+    public abstract void method2();
+}
+
+// 只有抽象方法的抽象类的作用仅仅是声明规则，因此和接口没有区别，可以改写为抽象类。
+public interface Inter{
+    public abstract void method1();
+    public abstract void method2();
+}
+```
+
+## 接口的定义和特点
+
+- 关键字 `interface` 定义。
+- 不能实例化。
+- 接口和类之间是实现关系，通过 `implements` 关键字表示。
+- 接口的子类要么重写接口的所有抽象方法，要么是抽象类。
+- 一个子类可以实现多个接口，并且不会出现方法冲突（因为接口只声明方法）。
+
+```java
+public interface Inter {
+    public abstract void study();
+}
+
+public interface InterA {
+    public abstract void method1();
+    public abstract void method2();
+}
+
+public class InterImpl implements Inter, InterA {
+    @Override
+    public void study() {
+        System.out.println("重写方法捏");
+
+    }
+
+
+    @Override
+    public void method1() {
+        System.out.println("重写方法捏1");
+    }
+
+    @Override
+    public void method2() {
+        System.out.println("重写方法捏2");
+    }
+}
+
+public class DemoInterface {
+    public static void main(String[] args) {
+        InterImpl ii = new InterImpl();
+        ii.study();
+    }
+}
+```
 
 
 
@@ -1412,6 +1472,58 @@ ps. 若子类调用父类的方法，且子类中没有该方法的重写，`sup
 - 修饰方法：表名该方法是最终方法，不能被重写。（一般修饰父类的核心方法）
 
 - 修饰类：表名该类是最终类，不能被继承。
+
+
+
+# 抽象类
+
+抽取子类中的共性行为到父类中，但是父类中无法具体明确，因此设置为抽象方法（强制子类重写该方法），父类变为抽象类。
+
+```java
+class Manager {
+    public void work()
+    {
+        System.out.println("管理程序员...");
+    }
+}
+
+class Coder {
+    public void work()
+    {
+        System.out.println("编写代码...");
+    }
+}
+
+// 抽取共性行为 --》 抽象类
+
+abstract class Employee {
+    public abstract void work();    // 强制子类重写该方法
+}
+
+class Manager extends Employee{
+    @Override
+    public void work()
+    {
+        System.out.println("管理程序员...");
+    }
+}
+
+class Coder extends Employee{
+    @Override
+    public void work() {
+        System.out.println("编写代码...");
+    }
+}
+```
+
+
+
+## 注意事项
+
+- 抽象类不能实例化，因为抽象方法不能被调用。
+- 抽象类存在构造方法，可以由子类调用。
+- 抽象类中可以没有抽象方法，但是有抽象方法的类一定是抽象类。抽象类中可以定义普通方法。
+- 抽象类的子类必须重写父类的所有的抽象方法，否则要将子类定义为抽象类（因为子类继承了父类中的抽象方法）。
 
 
 
