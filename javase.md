@@ -953,6 +953,114 @@ public class DemoInterface {
 
 
 
+## 接口中成员的特点
+
+- 接口中成员变量只能是常量（默认自带三个关键字修饰符：`public static final`）
+
+  ```java
+  public interface Inter {
+      public static final int num = 10;
+  }
+  ```
+
+- 接口中没有构造方法，其实现类实际上调用的是 `Object` 类
+
+- 接口中的方法只能是抽象方法（方法声明默认自带两个关键字修饰符：`public abstract`）
+
+  ```java
+  public abstract void eat();
+  ```
+
+## 类和接口的关系
+
+- 类与类
+
+  继承关系，只能单继承，不能多继承，但是可以多层继承。
+
+- 接口与类
+
+  实现关系，可以单实现，也可以多实现，还可以在继承一个类的同时实现多个接口。
+
+  ```java
+  class Fu{
+      public void method()
+      {
+          System.out.println("父类中的成员方法");
+      }
+  }
+  
+  public interface Inter {
+      public static final int num = 10;
+  
+      public abstract void InterMethod();
+  }
+  
+  public interface InterA {
+      public abstract void InterAMethod();
+  }
+  
+  interface InterC{
+      public abstract void method();
+  }
+  
+  class Zi extends Fu implements Inter, InterA, InterC{
+  
+      // 不需要实现 InterC 中的 method 方法，因为子类从父类中继承得到了 method 方法。
+  
+      @Override
+      public void InterMethod() {
+  
+      }
+  
+      @Override
+      public void InterAMethod() {
+  
+      }
+  }
+  ```
+
+  
+
+- 接口与接口
+
+  继承关系，可以单继承，也可以多继承。
+
+  ```java
+  interface Inter1{
+      public abstract void method1();
+  }
+  
+  interface Inter2{
+      public abstract void method2();
+  }
+  
+  interface Inter3 extends Inter1, Inter2{
+      public abstract void method3();
+  }
+  
+  class Inter3Impl implements Inter3{
+  
+      @Override
+      public void method1() {
+  
+      }
+  
+      @Override
+      public void method2() {
+  
+      }
+  
+      @Override
+      public void method3() {
+  
+      }
+  }
+  ```
+
+  
+
+
+
 # 窗体结构
 
 
@@ -1286,6 +1394,10 @@ class Employee{
 class Coder extends Employee{
 
 }
+
+/*
+xxx
+*/
 ```
 
 
@@ -1454,7 +1566,220 @@ ps. 若子类调用父类的方法，且子类中没有该方法的重写，`sup
 
 ## 多态
 
+同一个对象，在不同时刻表现不同形态。
 
+### 前提
+
+- 有继承 / 实现关系
+- 有方法重写
+- 有父类引用指向子类对象
+
+```java
+
+public class DemoPolymorphic {
+    public static void main(String[] args) {
+        // 当前对象是一个员工
+        Employee e = new Coder();
+        // 当前对象是一个程序员
+        Coder c = new Coder();
+    }
+}
+
+
+class Employee{
+    public void work()
+    {
+        System.out.println("working...");
+    }
+}
+
+class Coder extends Employee{
+    public void work()
+    {
+        System.out.println("coding...");
+    }
+}
+```
+
+### 多态的成员访问特点
+
+- 构造方法：同继承一样，子类通过 super 关键字调用父类的构造方法。
+- 成员变量：调用父类的成员变量，且只能访问父类中的成员变量。
+- 成员方法：编译时查看父类中是否有该方法，运行时调用子类中重写方法。
+
+### 多态的优劣
+
+- 优 - 提高了程序的扩展性:
+
+  ```java
+  public class Demo4Polymorphic {
+      public static void main(String[] args) {
+          Demo4Polymorphic d = new Demo4Polymorphic();
+          d.useAnimal(new Dog()); 	// 多态的优势
+          d.useAnimal(new Cat()); 	// 多态的优势
+  
+      }
+  
+      public void useAnimal(Animal a){   // Animal a = new Dog();
+                                         // Animal a = new Cat();
+          a.eat();
+          // a.watchHome(); 	多态的弊端：不能调用子类特有的方法
+      }
+      
+      /* 多态精简代码
+      public void useDog(Dog d){
+          d.eat();
+      }
+      public void useCat(Cat c){
+          c.eat();
+      }*/
+  }
+  
+  abstract class Animal {
+      public abstract void eat();
+  }
+  
+  class Dog extends Animal {
+  
+      @Override
+      public void eat() {
+          System.out.println("狗吃肉");
+      }
+  
+      public void watchHome(){
+          System.out.println("看家");
+      }
+  }
+  
+  class Cat extends Animal {
+  
+      @Override
+      public void eat() {
+          System.out.println("猫吃鱼");
+      }
+  }
+  ```
+
+- 劣 - 不能使用子类特有的方法
+
+
+
+### 多态中的转型
+
+### Example
+
+```java
+public class Demo1Polymorphic {
+    /*
+        1.向上转型
+            从子到父
+            父类引用指向子类对象
+        2.向下转型
+            从父到子
+            父类引用转为子类对象
+     */
+    public static void main(String[] args) {
+        Fu f = new Zi();
+        f.method();     // 仅调用公共方法
+
+        Zi z = (Zi) f;
+        z.show();   // 可调用子类特有方法 
+    }
+}
+
+class Fu {
+    public void method() {
+        System.out.println("Fu...method");
+    }
+}
+
+class Zi extends Fu {
+    @Override
+    public void method() {
+        System.out.println("Zi...method");
+    }
+
+    public void show() {
+        System.out.println("子类特有的show方法.");
+    }
+}
+```
+
+
+
+#### 向上转型
+
+```java
+Fu f = new Zi(); 	// 只能调用公共方法
+```
+
+#### 向下转型
+
+```java
+Zi z = (Zi)f; 	// 可以调用子类特有的方法
+```
+
+##### 向下转型时需注意类型转换错误
+
+```java
+public class Demo2Polymorphic {
+
+    /*
+        ClassCastException:
+            如果被转的引用类型变量，对应的实际类型和目标类型不是同一种类型，那么在转换的时候就会出现ClassCastException
+     */
+
+    public static void main(String[] args) {
+        Demo2Polymorphic d = new Demo2Polymorphic();
+        d.useAnimal(new Dog());
+        d.useAnimal(new Cat());
+    }
+
+    public void useAnimal(Animal a) {
+        a.eat();
+		
+        
+        // 不能直接类型转换然后调用 d.watchHome()，因为 Cat 类没有这个方法。
+        
+        if(a instanceof Dog){ 	// 判断传入的对象是狗
+            Dog d = (Dog) a;
+            d.watchHome();
+        }else if(a instanceof Cat){ 	// 判断传入的对象是猫
+            Cat c = (Cat) a;
+            c.catchMouse();
+        }
+
+    }
+}
+
+abstract class Animal {
+    public abstract void eat();
+}
+
+class Dog extends Animal {
+
+    @Override
+    public void eat() {
+        System.out.println("狗吃肉");
+    }
+
+    public void watchHome() {
+        System.out.println("看家");
+    }
+}
+
+class Cat extends Animal {
+
+    @Override
+    public void eat() {
+        System.out.println("猫吃鱼");
+    }
+
+    public void catchMouse() {
+        System.out.println("捉老鼠");
+    }
+}
+```
 
 
 
@@ -1539,8 +1864,6 @@ class Coder extends Employee{
 
 - 自动生成构造函数和 setXxx / GetXxx
 
-  ![image-20230707134850244](./assets/image-20230707134850244.png)
+  <img src="./assets/image-20230707134850244.png" alt="image-20230707134850244" style="zoom: 80%;" />
 
-![image-20230707134933820](./assets/image-20230707134933820.png)
-
-is ok？
+<img src="./assets/image-20230707134933820.png" alt="image-20230707134933820" style="zoom:80%;" />
