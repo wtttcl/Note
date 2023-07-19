@@ -1854,6 +1854,193 @@ class Coder extends Employee{
 
 
 
+# 事件
+
+## 事件监听机制
+
+事件源：事件监听的对象。
+
+事件：监听的动作。
+
+绑定监听：当事件源上发生了某个事件，触发对应的代码段。
+
+### 常见监听器（接口）
+
+#### `ActionListener` 动作监听
+
+```java
+public class Demo1ActionListener {
+    public static void main(String[] args) {
+        JFrame frame = new JFrame();
+        frame.setSize(514, 538);
+        frame.setLocationRelativeTo(null);  // 设置居中
+        frame.setLayout(null);  // 取消默认布局
+        frame.setDefaultCloseOperation(3);  // 设置关闭模式
+
+        JButton btn = new JButton("button");
+        btn.setBounds(0, 0, 100, 100);
+        frame.getContentPane().add(btn);
+
+        /** 绑定监听
+         * 方法 addActionListener(ActionListener l) 接收接口类型对象，但是接口不能实例化，因此
+         * 实际传入的是接口的实现类对象，即
+         * ActionListener l = new ActionListenerImpl()；
+         * 实际上是父类接收子类对象，也是一种多态的体现
+         */
+        btn.addActionListener(new ActionListenerImpl()); 	// 鼠标点击按钮和按空格键会引起时间
+
+        frame.setVisible(true);
+    }
+}
+
+class ActionListenerImpl implements ActionListener{
+
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        System.out.println("实现监听器接口");
+    }
+}
+```
+
+
+
+#### `MouseListener` 鼠标事件监听
+
+![image-20230717165433484](./assets/image-20230717165433484.png)
+
+##### Example
+
+```java
+public class Demo1MouseListener {
+    public static void main(String[] args) {
+        JFrame frame = new JFrame();
+        frame.setSize(514, 538);
+        frame.setLocationRelativeTo(null);  // 设置居中
+        frame.setLayout(null);  // 取消默认布局
+        frame.setDefaultCloseOperation(3);  // 设置关闭模式
+
+        JButton btn = new JButton("button");
+        btn.setBounds(0, 0, 100, 100);
+        frame.getContentPane().add(btn);
+
+        /** 绑定监听
+         * 方法 addActionListener(ActionListener l) 接收接口类型对象，但是接口不能实例化，因此
+         * 实际传入的是接口的实现类对象，即
+         * ActionListener l = new ActionListenerImpl()；
+         * 实际上是父类接收子类对象，也是一种多态的体现
+         */
+        btn.addMouseListener(new MouseListenerImpl());
+
+
+        frame.setVisible(true);
+    }
+}
+
+class MouseListenerImpl implements MouseListener{
+    @Override
+    public void mouseClicked(MouseEvent e) {
+        System.out.println("鼠标点击");
+    }
+
+    @Override
+    public void mousePressed(MouseEvent e) {
+        System.out.println("鼠标按下");
+    }
+
+    @Override
+    public void mouseReleased(MouseEvent e) {
+        System.out.println("鼠标松开");
+    }
+
+    @Override
+    public void mouseEntered(MouseEvent e) {
+        System.out.println("鼠标划入");
+    }
+
+    @Override
+    public void mouseExited(MouseEvent e) {
+        System.out.println("鼠标划出");
+    }
+}
+```
+
+###### Example2
+
+```java
+public class ClickMe extends JFrame implements MouseListener { 	// 在继承 JFrame 的同时实现 MouseListener 接口
+
+    JButton btn = new JButton("button");
+
+    public static void main(String[] args) {
+        ClickMe cm = new ClickMe();
+        cm.init();
+    }
+
+    public void init()
+    {
+        setSize(514, 538);
+        setLocationRelativeTo(null);  // 设置居中
+        setLayout(null);  // 取消默认布局
+        setDefaultCloseOperation(3);  // 设置关闭模式
+
+
+        btn.setBounds(0, 0, 100, 100);
+        getContentPane().add(btn);
+
+        btn.addMouseListener(this); 	// 因为是接口的实现类，所以可以直接传入自己
+
+        setVisible(true);
+    }
+
+    @Override
+    public void mouseClicked(MouseEvent e) {
+
+    }
+
+    @Override
+    public void mousePressed(MouseEvent e) {
+
+    }
+
+    @Override
+    public void mouseReleased(MouseEvent e) {
+
+    }
+
+    int flag = 1;
+
+    @Override
+    public void mouseEntered(MouseEvent e) { 	// 实现一个简单的按钮躲避的功能
+        if(flag == 1)
+        {
+            btn.setBounds(100, 100, 100, 100);
+            flag = -flag;
+        }
+        else
+        {
+            btn.setBounds(0, 0, 100, 100);
+            flag = -flag;
+        }
+        System.out.println("鼠标划入");
+
+    }
+
+    @Override
+    public void mouseExited(MouseEvent e) {
+
+    }
+}
+```
+
+
+
+#### `KeyListener`
+
+
+
+
+
 # 快捷方式
 
 - pvsm + enter : main方法
