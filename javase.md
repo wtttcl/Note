@@ -887,9 +887,9 @@ public class TestStudent {
 
 
 
-# 接口 - API
+# 接口 - API（仅声明，无实现）
 
-API (Application Programming Interface)：应用程序编程接口。声明规则。
+API (Application Programming Interface)：应用程序编程接口。**仅声明规则。**
 
 如果一个类中只有抽象方法，那么可以将这个类改写成接口。
 
@@ -899,63 +899,83 @@ public abstract class Inter{
     public abstract void method2();
 }
 
-// 只有抽象方法的抽象类的作用仅仅是声明规则，因此和接口没有区别，可以改写为抽象类。
+// 只有抽象方法的抽象类的作用仅仅是声明规则，因此和接口没有区别，可以将抽象类改写为接口。
 public interface Inter{
     public abstract void method1();
     public abstract void method2();
 }
 ```
 
+
+
 ## 接口的定义和特点
 
-- 关键字 `interface` 定义。
-- 不能实例化。
-- 接口和类之间是实现关系，通过 `implements` 关键字表示。
-- 接口的子类要么重写接口的所有抽象方法，要么是抽象类。
-- 一个子类可以实现多个接口，并且不会出现方法冲突（因为接口只声明方法）。
+- 关键字 **`interface`** 定义。
 
-```java
-public interface Inter {
-    public abstract void study();
-}
+- **不能实例化。**
 
-public interface InterA {
-    public abstract void method1();
-    public abstract void method2();
-}
+- 接口和类之间是实现关系，通过 **`implements`** 关键字表示，实现类通常命名为 "接口名Impl"。
 
-public class InterImpl implements Inter, InterA {
-    @Override
-    public void study() {
-        System.out.println("重写方法捏");
+- **接口的子类要么重写接口的所有抽象方法，要么是抽象类。**
 
-    }
+  ```java
+  public interface Inter {
+      public abstract void method();
+      public abstract void method2();
+  }
+  
+  public abstract class InterImpl implements Inter{
+      public void method1()
+      {
+          System.out.println("重写method1");
+      }
+  }
+  ```
 
+- 一个子类可以实现多个接口，并且 **不会出现方法冲突**（因为接口只声明方法）。
 
-    @Override
-    public void method1() {
-        System.out.println("重写方法捏1");
-    }
+  ```java
+  public interface Inter {
+      public abstract void study();
+  }
+  
+  public interface InterA {
+      public abstract void method1();
+      public abstract void method2();
+      public abstract void study();
+  }
+  
+  public class InterImpl implements Inter, InterA {
+      @Override
+      public void study() {
+          System.out.println("重写方法捏"); 	// 即便两个接口都声明了 study 方法，在实现时也不会出现方法冲突。
+      }
+  
+  
+      @Override
+      public void method1() {
+          System.out.println("重写方法捏1");
+      }
+  
+      @Override
+      public void method2() {
+          System.out.println("重写方法捏2");
+      }
+  }
+  
+  public class DemoInterface {
+      public static void main(String[] args) {
+          InterImpl ii = new InterImpl();
+          ii.study();
+      }
+  }
+  ```
 
-    @Override
-    public void method2() {
-        System.out.println("重写方法捏2");
-    }
-}
-
-public class DemoInterface {
-    public static void main(String[] args) {
-        InterImpl ii = new InterImpl();
-        ii.study();
-    }
-}
-```
-
-
+  
 
 ## 接口中成员的特点
 
-- 接口中成员变量只能是常量（默认自带三个关键字修饰符：`public static final`）
+- 接口中 **成员变量只能是常量**（默认自带三个关键字修饰符：**`public static final`**）
 
   ```java
   public interface Inter {
@@ -965,11 +985,13 @@ public class DemoInterface {
 
 - 接口中没有构造方法，其实现类实际上调用的是 `Object` 类
 
-- 接口中的方法只能是抽象方法（方法声明默认自带两个关键字修饰符：`public abstract`）
+- 接口中 **成员方法只能是抽象方法**（方法声明默认自带两个关键字修饰符：**`public abstract`**）
 
   ```java
   public abstract void eat();
   ```
+
+
 
 ## 类和接口的关系
 
@@ -999,31 +1021,25 @@ public class DemoInterface {
       public abstract void InterAMethod();
   }
   
-  interface InterC{
+  public interface InterC{
       public abstract void method();
   }
   
-  class Zi extends Fu implements Inter, InterA, InterC{
+  class Zi extends Fu implements Inter, InterA, InterC{ 	// 继承类 并且 实现多个接口
   
       // 不需要实现 InterC 中的 method 方法，因为子类从父类中继承得到了 method 方法。
   
       @Override
-      public void InterMethod() {
-  
-      }
+      public void InterMethod() {}
   
       @Override
-      public void InterAMethod() {
-  
-      }
+      public void InterAMethod() {}
   }
   ```
-
   
-
 - 接口与接口
 
-  继承关系，可以单继承，也可以多继承。
+  **继承关系，可以单继承，也可以多继承。**
 
   ```java
   interface Inter1{
@@ -1041,25 +1057,17 @@ public class DemoInterface {
   class Inter3Impl implements Inter3{
   
       @Override
-      public void method1() {
-  
-      }
+      public void method1() {}
   
       @Override
-      public void method2() {
-  
-      }
+      public void method2() {}
   
       @Override
-      public void method3() {
-  
-      }
+      public void method3() {}
   }
   ```
-
   
-
-
+  
 
 # 窗体结构
 
@@ -1854,9 +1862,7 @@ class Coder extends Employee{
 
 
 
-# 事件
-
-## 事件监听机制
+# 事件监听机制
 
 事件源：事件监听的对象。
 
@@ -1864,9 +1870,11 @@ class Coder extends Employee{
 
 绑定监听：当事件源上发生了某个事件，触发对应的代码段。
 
-### 常见监听器（接口）
 
-#### `ActionListener` 动作监听
+
+## 常见监听器（都是接口）
+
+### A. `ActionListener` 动作监听
 
 ```java
 public class Demo1ActionListener {
@@ -1881,21 +1889,18 @@ public class Demo1ActionListener {
         btn.setBounds(0, 0, 100, 100);
         frame.getContentPane().add(btn);
 
-        /** 绑定监听
-         * 方法 addActionListener(ActionListener l) 接收接口类型对象，但是接口不能实例化，因此
-         * 实际传入的是接口的实现类对象，即
+        /** 绑定监听，其中，btn 是监听对象， new ActionListenerImpl()是事件（监听的动作）
+         * 方法 addActionListener(ActionListener l) 接收接口类型对象，但是接口不能实例化，因此实际传入的是接口的实现类对象，即
          * ActionListener l = new ActionListenerImpl()；
          * 实际上是父类接收子类对象，也是一种多态的体现
          */
-        btn.addActionListener(new ActionListenerImpl()); 	// 鼠标点击按钮和按空格键会引起时间
+        btn.addActionListener(new ActionListenerImpl()); 	// 鼠标点击按钮和按空格键会引起事件
 
         frame.setVisible(true);
     }
 }
 
 class ActionListenerImpl implements ActionListener{
-
-
     @Override
     public void actionPerformed(ActionEvent e) {
         System.out.println("实现监听器接口");
@@ -1905,11 +1910,11 @@ class ActionListenerImpl implements ActionListener{
 
 
 
-#### `MouseListener` 鼠标事件监听
+### B. `MouseListener` 鼠标事件监听
 
 ![image-20230717165433484](./assets/image-20230717165433484.png)
 
-##### Example
+#### Example
 
 ```java
 public class Demo1MouseListener {
@@ -1924,14 +1929,8 @@ public class Demo1MouseListener {
         btn.setBounds(0, 0, 100, 100);
         frame.getContentPane().add(btn);
 
-        /** 绑定监听
-         * 方法 addActionListener(ActionListener l) 接收接口类型对象，但是接口不能实例化，因此
-         * 实际传入的是接口的实现类对象，即
-         * ActionListener l = new ActionListenerImpl()；
-         * 实际上是父类接收子类对象，也是一种多态的体现
-         */
+        // 绑定监听
         btn.addMouseListener(new MouseListenerImpl());
-
 
         frame.setVisible(true);
     }
@@ -1965,7 +1964,7 @@ class MouseListenerImpl implements MouseListener{
 }
 ```
 
-###### Example2
+#### Example2
 
 ```java
 public class ClickMe extends JFrame implements MouseListener { 	// 在继承 JFrame 的同时实现 MouseListener 接口
@@ -1984,29 +1983,23 @@ public class ClickMe extends JFrame implements MouseListener { 	// 在继承 JFr
         setLayout(null);  // 取消默认布局
         setDefaultCloseOperation(3);  // 设置关闭模式
 
-
         btn.setBounds(0, 0, 100, 100);
         getContentPane().add(btn);
 
         btn.addMouseListener(this); 	// 因为是接口的实现类，所以可以直接传入自己
+        // this.addMouseListener(this); 	这样也行，相当于在整个窗体的任意位置都会监听鼠标事件
 
         setVisible(true);
     }
 
     @Override
-    public void mouseClicked(MouseEvent e) {
-
-    }
+    public void mouseClicked(MouseEvent e) {}
 
     @Override
-    public void mousePressed(MouseEvent e) {
-
-    }
+    public void mousePressed(MouseEvent e) {}
 
     @Override
-    public void mouseReleased(MouseEvent e) {
-
-    }
+    public void mouseReleased(MouseEvent e) {}
 
     int flag = 1;
 
@@ -2027,15 +2020,66 @@ public class ClickMe extends JFrame implements MouseListener { 	// 在继承 JFr
     }
 
     @Override
-    public void mouseExited(MouseEvent e) {
+    public void mouseExited(MouseEvent e) {}
+}
+```
 
+
+
+### C. `KeyListener` 键盘监听
+
+<img src="C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20230720215335790.png" alt="image-20230720215335790"  />
+
+#### Example
+
+```java
+public class TestKeyFrame extends JFrame implements KeyListener {
+    public static void main(String[] args) {
+        TestKeyFrame frame = new TestKeyFrame();
+        frame.init();
+    }
+
+    public void init()
+    {
+        setSize(514, 538);
+        setLocationRelativeTo(null);
+        setLayout(null);
+        setDefaultCloseOperation(3);
+
+        this.addKeyListener(this);
+
+        setVisible(true);
+    }
+
+    @Override
+    public void keyTyped(KeyEvent e) {
+        // 此方法不对键盘的上下左右等键做出反应
+    }
+
+    @Override
+    public void keyPressed(KeyEvent e) {
+        int code = e.getKeyCode();  
+        System.out.println("pressed " + code);
+    }
+
+    @Override
+    public void keyReleased(KeyEvent e) {
+        System.out.println("released");
     }
 }
 ```
 
 
 
-#### `KeyListener`
+# 2048游戏实现细节
+
+
+
+## 左移实现
+
+
+
+
 
 
 
