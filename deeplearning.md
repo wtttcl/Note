@@ -1,8 +1,10 @@
+
+
 # python
 
-## 基础知识
+## A. 基础知识
 
-## `()` 元组、 `[]`  列表、 `{}`  字典
+### 1. `()` 元组、 `[]`  列表、 `{}`  字典
 
 - `()` 元组：有序的、**不可变的**、可索引的数据结构，可以包含任意类型的元素。**元组不可进行增删改，但是可以重新赋值。**
 
@@ -97,7 +99,7 @@
 
 ---
 
-## `assert` 断言
+### 2. `assert` 断言
 
 语法：
 
@@ -126,7 +128,7 @@ assert embedding_dim % num_heads == 0, 'embedding_dim % num_heads != 0'
 
 ---
 
-## `zip()`
+### 3. `zip()`
 
 Python 中的一个内置函数，用于将多个可迭代对象打包成一个元组序列。它的语法结构如下：
 
@@ -147,11 +149,22 @@ result = zip(a, b)
 
 ---
 
-## 
+### 4. `//` 和 `/`
 
-## 类内函数
+`//` ：整数除法运算符，返回商的整数部分 。
 
-### `__call__()`
+`/` ：除法运算符，返回浮点数结果（双精度浮点数结果，最多 $16$ 位小数）。
+
+```
+result = 7 // 3
+print(result)  # 输出：2
+```
+
+<hr style="border:3px #6CA6CD double;">
+
+## B. 类内函数
+
+### 1. `__call__()`
 
 一般用在类中，类似于在类中重载 () 运算符，使得类实例对象可以像调用普通函数那样，以 **“对象名()”** 的形式使用，即，可调用对象。
 
@@ -182,7 +195,7 @@ test("Jack",18)
 
 ---
 
-## `__getitem__()`
+### 2. `__getitem__()`
 
 一般在类中定义，可以重载获取元素，让对象实现迭代功能。
 
@@ -200,7 +213,7 @@ test("Jack",18)
 
 ---
 
-## `__len__() `
+### 3. `__len__() `
 
 一般在类中定义，使得对象可以实现 `len()` 函数。（ 当执行到 **len(对象)** 方法时，会自动调用对象的 `__len__()` 方法，表示用来求该对象的某个属性（变量）的元素的个数。如果类中没有定义 `__len__()`方法，就会报类型错误。）
 
@@ -214,7 +227,7 @@ class Test(object):
 
 ---
 
-## `super(myClass, self).__init__() `
+### 4. `super(myClass, self).__init__() `
 
 1. 直接继承
 
@@ -276,11 +289,13 @@ class Test(object):
 
 ## 
 
-## numpy
+<hr style="border:3px #6CA6CD double;">
+
+## C. Numpy
 
 ==注意：np.array 是数组类型，和列表类型（[]）是有区别的，列表可以存储任何的对象，数据类型不同也可以，但是数组只能存储单一的数据类型。==
 
-```
+```python
 gamma = np.power(
             self.cfg.ultimate_lr / self.cfg.initial_lr,
             1.0 / self.cfg.epoch_num)
@@ -288,11 +303,43 @@ gamma = np.power(
 
 
 
-## glob
+### array + num
+
+广播，将这个整数加到数组的每个元素之上。
+
+### np.prod(array)：计算数组中所有元素的乘积。
+
+```
+import numpy as np
+
+arr = np.array([1, 2, 3, 4])
+product = np.prod(arr)
+
+print(product)  # 输出 24，因为 1 * 2 * 3 * 4 = 24
+```
+
+### np.sqrt(array)：计算数组中每个元素的平方根
+
+计算每个元素的平方根，并返回一个新的数组。
+
+```
+import numpy as np
+
+arr = np.array([1, 4, 9, 16])
+result = np.sqrt(arr)
+
+print(result) 	# [1. 2. 3. 4.]
+```
 
 
 
-### `glob.glob(pathname, (optional) recursive=False)`：搜索指定格式文件名
+<hr style="border:3px #6CA6CD double;">
+
+## D. glob
+
+
+
+### 1. `glob.glob(pathname, (optional) recursive=False)`：搜索指定格式文件名
 
 参数：
 
@@ -315,9 +362,7 @@ all_files = glob.glob("/path/to/directory/**/*", recursive=True)
 
 [golb.glob]: https://blog.csdn.net/shary_cao/article/details/122050756?ops_request_misc=&amp;request_id=&amp;biz_id=102&amp;utm_term=glob.glob&amp;utm_medium=distribute.pc_search_result.none-task-blog-2~all~sobaiduweb~default-3-122050756.142^v95^insert_down1&amp;spm=1018.2226.3001.4187	"golb.glob"
 
----
-
-
+<hr style="border:5px #0D0D0D solid;">
 
 # pytorch
 
@@ -392,15 +437,17 @@ self.net = self.net.to(self.device)
 
 ### 
 
+<hr style="border:1px #6CA6CD double;">
+
 ### 2. torch.Tensor
 
-#### a. torch.Tensor.item()
+#### a. `torch.Tensor.item()`
 
-#### b. torch.Tensor.float()
+#### b. `torch.Tensor.float()`
 
 #### c. `torch.Tensor.device()`：返回该 Tensor 所在的设备
 
-#### d. torch.Tensor.to()：执行 tensor 数据类型或设备转换。
+#### d. `torch.Tensor.to()`：执行 tensor 数据类型或设备转换。
 
 ```
 self.cuda = torch.cuda.is_available()
@@ -410,11 +457,35 @@ self.cuda = torch.cuda.is_available()
 self.net = self.net.to(self.device)
 ```
 
-### 
+### e. `torch.Tensor.view()`：一个高级指针，快速操作
 
-### 2. torch.utlis
+用不同的方式解释相同的数据。浅拷贝的同时可以实现 reshape、切片等操作。相当于一个高级的指针。（避免了显式的数据拷贝，可以快速进行 reshape、切片等操作）
 
-### `torch.cuda.is_available()`：检查当前系统是否可用 CUDA
+```
+t = torch.rand(4, 4)
+b = t.view(2, 8) 	# reshape
+t.storage().data_ptr() == b.storage().data_ptr() 	# t 和 b 指向同一存储空间
+#true
+
+# 修改原 tensor 或者 view 都会造成数据修改
+b[0][0] = 3.14
+t[0][0]
+# tensor(3.14)
+
+t[1][2] = 3.14
+b[1][2]
+# tensor(3.14)
+```
+
+
+
+
+
+<hr style="border:3px #6CA6CD double;">
+
+### 3. torch.utlis
+
+#### a. `torch.cuda.is_available()`：检查当前系统是否可用 CUDA
 
 ```
 self.cuda = torch.cuda.is_available()
@@ -600,16 +671,192 @@ def gen_data_loader(args):
   - 首先，在将数据分成训练集、验证集和测试集之前，通常需要对整个数据集进行第一次随机打乱。这是因为原始数据集可能具有某些固有的顺序和模式，这可能会对模型的训练和评估产生负面影响。通过随机打乱，可以消除数据集中的这些顺序和模式，使得数据更加随机和均匀地分布，从而更好地训练和评估模型。
   - 其次，训练神经网络等机器学习模型时，为了防止模型过度拟合，通常需要在每个 epoch 之前对训练集进行第二次随机打乱。这是因为如果在每个训练周期中使用相同的顺序和模式来遍历训练数据，**模型可能会记住数据的顺序和模式，从而导致过度拟合** 。通过在每个 epoch 之前对训练集进行随机打乱，可以避免这种情况的发生，提高模型的泛化能力。
 
----
+<hr style="border:3px #6CA6CD double;">
 
-## `torch.nn.Module`
+## 4. `torch.nn`
 
-**`nn.Module` 是所有网络结构层次的父类，当你要实现一个自己的层的时候，必须要继承这个类。**
+### a. `torch.nn.Conv2d()`：2d 图像上卷积
 
-**使用`nn.Module`的话，它就会对你神经网络的内部参数进行一个有效的管理**
+```
+torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True, padding_mode='zeros', device=None, dtype=None)
+```
 
-## `torch.nn.Sequential`
+**shape**：
 
-Sequential 允许我们构建序列化的模块，也就是说用了Sequential的好处是我们可以通过数字访问第几层，可以通过parameters、weights等参数显示网络的参数和权重
+- input：[N, Cin, Hin, Win]
+- output：[N, Cout, Hout, Wout]
 
-## 
+<img src="./assets/image-20231009142731253.png" alt="image-20231009142731253" style="zoom:75%;" />
+
+**参数**：
+
+- **num_features**：通道数量。
+- **eps**：添加在分母上的极小值，保证数值稳定
+- **momentum**：用于计算 running_mean 和 running_var。
+- affine：布尔值，默认为true。affine=true 表示该模块有可学习的仿射参数。
+- track_running_stats：布尔值，默认为 false。track_running=false 表示该模块跟踪运行均值和方差。
+
+**e.g.**
+
+### b. `torch.nn.BatchNorm2d()`：空间批归一化
+
+学习每一个 batch 的均值和标准差。
+
+```
+torch.nn.BatchNorm2d(num_features, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True, device=None, dtype=None)
+```
+
+**shape**：（不改变 shape）
+
+- input：[N, C, H, W]
+- output：[N, C, H, W]
+
+**参数**：
+
+- **num_features**：通道数量。
+- **eps**：添加在分母上的极小值，保证数值稳定
+- **momentum**：用于计算 running_mean 和 running_var。
+- affine：布尔值，默认为true。affine=true 表示该模块有可学习的仿射参数。
+- track_running_stats：布尔值，默认为 false。track_running=false 表示该模块跟踪运行均值和方差。
+
+**e.g.**
+
+```
+self.conv1 = nn.Sequential(
+            nn.Conv2d(3, 96, 11, 2),
+            nn.BatchNorm2d(96, 1e-6, 0.05),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(3, 2))
+```
+
+
+
+### <font color=brown size=5>c. `torch.nn.RELU()`</font>
+
+```
+torch.nn.ReLU(*inplace=False*)
+```
+
+<img src="./assets/image-20231009144718167.png" alt="image-20231009144718167" style="zoom:100%;" />
+
+<img src="./assets/image-20231009144750765.png" alt="image-20231009144750765" style="zoom:50%;" />
+
+**shape**：
+
+- input：*
+- output：*
+
+**e.g.**
+
+```
+self.conv1 = nn.Sequential(
+            nn.Conv2d(3, 96, 11, 2),
+            nn.BatchNorm2d(96, 1e-6, 0.05),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(3, 2))
+
+```
+
+### <font color=brown size=5>d. `torch.nn.MaxPool2d()`：最大池化</font>
+
+```
+torch.nn.MaxPool2d(kernel_size, stride=None, padding=0, dilation=1, return_indices=False, ceil_mode=False)
+```
+
+**shape**：
+
+- input：[N, C, H~in~, W~in~]
+
+- output：[N, C, H~out~, W~out~]
+
+  <img src="./assets/image-20231009144516255.png" alt="image-20231009144516255" style="zoom:75%;" />
+
+**参数**：
+
+- **kernel_size (int / tuple[int, int])**：最大池化窗口大小。
+- **stride**：默认为kernel_size。最大池化的步距。
+- padding
+- dilation
+- return_indices
+- ceil_mode
+
+**e.g.**
+
+```
+self.conv1 = nn.Sequential(
+            nn.Conv2d(3, 96, 11, 2),
+            nn.BatchNorm2d(96, 1e-6, 0.05),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(3, 2))
+```
+
+
+
+### e. `torch.nn.Module`
+
+`nn.Module`  是 **所有网络结构层次的父类**，当你要实现一个自己的 **层** 的时候，必须要继承这个类。
+
+使用 `nn.Module` 的话，它就会对你神经网络的内部参数进行一个有效的管理。
+
+
+
+**e.g.**
+
+```
+import torch.nn as nn
+import torch.nn.functional as F
+
+class Model(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1 = nn.Conv2d(1, 20, 5)
+        self.conv2 = nn.Conv2d(20, 20, 5)
+
+    def forward(self, x):
+        x = F.relu(self.conv1(x))
+        return F.relu(self.conv2(x))
+```
+
+
+
+### f. `torch.nn.ModuleList` 
+
+存储 `Module` 的列表（`List`）。
+
+ModuleList 和 Sequential 的区别：
+
+- nn.Sequential 内部实现了 forward 函数，因此可以直接进行前向传播；而 nn.ModuleList 内部没有实现的 forward 函数。
+- nn.Sequential 可以用 OrderedDict 对每层重命名，nn.ModuleList 不行。
+- nn.Sequential 按顺序串联模块，必须确保上一个模块的输出符合下一个模块的输入；nn.ModuleList 只是将不同模块存储在一起，没有先后顺序要求。
+
+### g. `torch.nn.Sequential`
+
+`Sequential` 允许我们构建 **序列化** 的模块，也就是说，我们可以通过数字访问第几层，可以通过parameters、weights等参数显示网络的参数和权重。
+
+```
+# Using Sequential to create a small model. When `model` is run,
+# input will first be passed to `Conv2d(1,20,5)`. The output of
+# `Conv2d(1,20,5)` will be used as the input to the first
+# `ReLU`; the output of the first `ReLU` will become the input
+# for `Conv2d(20,64,5)`. Finally, the output of
+# `Conv2d(20,64,5)` will be used as input to the second `ReLU`
+model = nn.Sequential(
+          nn.Conv2d(1,20,5),
+          nn.ReLU(),
+          nn.Conv2d(20,64,5),
+          nn.ReLU()
+        )
+
+# Using Sequential with OrderedDict. This is functionally the
+# same as the above code
+model = nn.Sequential(OrderedDict([
+          ('conv1', nn.Conv2d(1,20,5)),
+          ('relu1', nn.ReLU()),
+          ('conv2', nn.Conv2d(20,64,5)),
+          ('relu2', nn.ReLU())
+        ]))
+```
+
+
+
+<hr style="border:1px #cccccc dotted;">
