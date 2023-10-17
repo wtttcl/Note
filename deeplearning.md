@@ -155,9 +155,51 @@ result = zip(a, b)
 
 `/` ：除法运算符，返回浮点数结果（双精度浮点数结果，最多 $16$ 位小数）。
 
-```
+```python
 result = 7 // 3
 print(result)  # 输出：2
+```
+
+### 5. 列表推导式 `list = [x for x in range(10)]`
+
+```python
+new_list = [expression for item in itreable if condition]
+```
+
+- `expression`：每个 item 都要执行的操作，包括表达式运算、函数等；
+- `item`：可迭代对象中的每个元素；
+- `iterable`：一个可迭代对象；
+- `condition`： (optional) 过滤 item。
+
+e.g.
+
+```
+# eg1
+a = [i for i in range(10)]
+print(a)  # a = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+# eg2
+letter = ['a+','b+','c+','d']
+a = [i.replace('+','') for i in letter]
+print(a)   # a = ['a', 'b', 'c', 'd']
+
+# eg3
+class Solution:
+    def sumOfMultiples(self, n: int) -> int:
+        return sum(x for x in range(1, n + 1) if x % 3 == 0 or x % 5 == 0 or x % 7 == 0)
+
+# eg4 
+def func(i):
+    if i % 3 == 0:
+        return str(i) + ' 能整除 3'
+    if i % 5 == 0:
+        return str(i) + ' 能整除 5'
+    if i % 7 == 0:
+        return str(i) + ' 能整除 7'
+    return i
+
+a = [func(i) for i in range(10)]
+print(a) # a = ['0 能整除 3', 1, 2, '3 能整除 3', 4, '5 能整除 5', '6 能整除 3', '7 能整除 7', 8, '9 能整除 3']
 ```
 
 <hr style="border:3px #6CA6CD double;">
@@ -487,11 +529,30 @@ b[1][2]
 
 #### a. `torch.cuda.is_available()`：检查当前系统是否可用 CUDA
 
-```
+```python
 self.cuda = torch.cuda.is_available()
         self.device = torch.device('cuda:0' if self.cuda else 'cpu')
 # 如果 self.cuda 为 True，则将设备设置为第一个可用的 CUDA 设备（通常命名为 "cuda:0"），否则将设备设置为 CPU。这个设备将用于分配张量和执行计算操作。
 ```
+
+#### b. `torch.utlis.data.Dataset`：构建一个可迭代的数据集
+
+构建自己的数据集时，要继承该类，并进行子类化。具体来讲，主要是重载 `__getitem__()` 成员函数。
+
+```
+class DataSets(Dataset):
+    def __init__(self, cfg, anchor_cfg, num_epoch=1):
+        super(DataSets, self).__init__()
+        
+    def __len__(self):
+        return self.num
+    
+    def __getitem__(self, index, debug=False):
+        ...
+        return 一个 data
+```
+
+
 
 ### 初始化模型权重
 
