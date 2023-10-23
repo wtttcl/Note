@@ -325,7 +325,7 @@ app 可执行程序可以正常执行了。
 
   <div align=left><img src="./assets/image-20231018205232440.png" alt="image-20231018205232440" /></div>
 
-  - 目标：最终要生成的文件（伪目标除外）
+  - 目标：最终要生成的 **文件**（伪目标除外）
   - 依赖：生成目标所需要的文件或目标
   - 命令：通过执行命令对依赖操作生成目标（必须有 Tab 缩进）
 
@@ -348,7 +348,12 @@ app 可执行程序可以正常执行了。
 <img src="./assets/image-20231018205232440.png" alt="image-20231018205232440" />
 
 - 命令在执行之前，首先会检查规则中的依赖是否存在。如果不存在，则向下检查其他规则；如果存在，则指直接执行命令。==**与第一条规则没有任何关系的规则不会执行！**==
+
 - 检查更新。在执行规则的命令时，会比较目标和依赖文件的时间。如果依赖的时间比目标的时间晚，则会重新执行命令生成目标；如果依赖的时间比目标的时间早，则不进行更新。
+
+- clean 规则：将 clean 文件设置成 **伪文件**，避免与其他名为 clean 的文件冲突。clean 规则不需要依赖。
+
+  ![image-20231019100145277](./assets/image-20231019100145277.png)
 
 Makefile：
 
@@ -394,19 +399,311 @@ Makefile：
 ```
 
 - %：通配符，匹配一个字符串；
-- 两个 % 匹配的是同一个字符串；
+- 一个规则中的两个或多个 % 匹配的是同一个字符串；
 
 
 
 # Makefile 的函数
 
-$(wildcard PATTERN...)
+**1. `wildcard`**
+
+```makefile
+$(wildcard PATTERN...) 	# (函数名 参数)
+```
+
+- 获取指定目录下指定类型的文件列表，返回一个文件列表（空格间隔）
+
+- 参数 PATTERN 指的是某个或多个目录下的对应的某种类型的文件，如果有多个目录，一般使用空格间隔
+
+- e.g.
+
+  <img src="./assets/image-20231019092731403.png" alt="image-20231019092731403" style="zoom:80%;" />
+
+
+
+**2. `patsubst`**
+
+```makefile
+$(patsubst <pattern>,<replacement>,<text>)
+```
+
+- 查找 `<text>` 中的单词（以 空格/Tab/回车/换行 分隔）是否符合模式 `<pattern>`，如果符合，则用 `<replacement>` 替换，返回被替换后的字符串；
+
+- `<pattern>` 可以包括通配符 '%' 表示任意长度的字符串（'\%' 代表 '%'），若 `<replacement>` 也含有 '%'，那么它们表示的是同一个字符串；
+
+- e.g.
+
+  <img src="./assets/image-20231019093458669.png" alt="image-20231019093458669" style="zoom:80%;" />
 
 ## 简化的 Makefile
 
-![image-20231018210857665](./assets/image-20231018210857665.png)
+简化前的 Makefile（两种写法）：
 
-用变量简化后
+<img src="./assets/image-20231018210048275.png" alt="image-20231018210048275" style="zoom:90%;" />
+
+<img src="./assets/image-20231018210857665.png" alt="image-20231018210857665" style="zoom:90%;" />
+
+用变量简化后：
+
+<img src="./assets/image-20231019091939040.png" alt="image-20231019091939040" style="zoom:90%;" />
+
+<img src="./assets/image-20231019091819295.png" alt="image-20231019091819295" style="zoom:90%;" />
+
+编译执行：
+
+<img src="./assets/image-20231019091702838.png" alt="image-20231019091702838" style="zoom:90%;" />
+
+<img src="./assets/image-20231019091730739.png" alt="image-20231019091730739" style="zoom:90%;" />
+
+用函数简化 Makefile 后：
+
+![image-20231019094213441](./assets/image-20231019094213441.png)
+
+![image-20231019094154640](./assets/image-20231019094154640.png)
+
+增加 clean 规则删除中间生成的 .o 文件。
+
+![image-20231019094709307](./assets/image-20231019094709307.png)
+
+![image-20231019094353584](./assets/image-20231019094353584.png)
+
+# GDB
+
+- GDB 是由 GNU 软件系统社区提供的调试工具，同 GCC 配套组成了一套完整的开发环 境，GDB 是 Linux 和许多类 Unix 系统中的标准开发环境。
+
+- 一般来说，GDB 主要帮助你完成下面四个方面的功能： 
+
+  - 启动程序，可以按照自定义的要求随心所欲的运行程序
+  - 可让被调试的程序在所指定的调置的断点处停住（断点可以是条件表达式） 
+  - 当程序被停住时，可以检查此时程序中所发生的事
+  - 可以改变程序，将一个 BUG 产生的影响修正从而测试其他 BUG
+
+- 通常，在为调试而编译时，我们会（）关掉编译器的优化选项（`-O`）， 并打开调 试选项（`-g`）。另外，`-Wall`在尽量不影响程序行为的情况下选项打开所有 warning，也可以发现许多问题，避免一些不必要的 BUG。
+
+  ```makefile
+  gcc -g -Wall program.c -o program 	# `-g` 选项的作用是在可执行文件中加入源代码的信息，比如可执行文件中第几条机器指令对应源代码的第几行，但并不是把整个源文件嵌入到可执行文件中，所以在调试时必须保证 gdb 能找到源文件。
+  ```
 
 
 
+## GDB 常用命令
+
+### 1. 启动和退出
+
+```shell
+gdb 可执行程序名 	# gdb main
+quit
+```
+
+### 2. 给程序设置命令行参数 / 获取设置的命令行参数
+
+```shell
+set args 10 20
+show args
+```
+
+### 3. gdb 使用帮助
+
+```shell
+help
+```
+
+### 4. 查看当前文件代码
+
+```shell
+# 查看当前文件代码
+list/l （从默认位置显示）
+list/l 行号 （从指定的行显示）
+list/l 函数名（从指定的函数显示）
+
+# 查看非当前文件代码
+list/l 文件名:行号
+list/l 文件名:函数名
+```
+
+### 5. 设置显示的行数
+
+```shell
+show list/listsize
+set list/listsize 行数
+```
+
+### 6. 断点
+
+```shell
+# 设置断点
+b/break 行号
+b/break 函数名
+b/break 文件名:行号
+b/break 文件名:函数
+
+# 查看断点
+i/info b/break
+
+# 删除断点
+d/del/delete 断点编号
+
+# 设置断点无效
+dis/disable 断点编号
+
+# 设置断点生效
+ena/enable 断点编号
+
+# 设置条件断点（一般用在循环的位置）
+b/break 10 if i==5
+```
+
+### 7. 运行
+
+```shell
+# 运行GDB程序
+start（程序停在第一行）
+run（遇到断点才停）
+
+# 继续运行，到下一个断点停
+c/continue
+
+# 向下执行一行代码（不会进入函数体）
+n/next
+
+# 向下单步调试（遇到函数进入函数体）
+s/step
+finish（跳出函数体）
+```
+
+### 8. 查看变量
+
+```shell
+# 变量操作
+p/print 变量名（打印变量值）
+ptype 变量名（打印变量类型）
+
+# 其它操作
+set var 变量名=变量值 （循环中用的较多）
+until （跳出循环）
+```
+
+# 文件 IO
+
+## 1. 标准 C 库 IO 函数 与 linux 系统 IO 的关系
+
+标准 C 库 IO 函数通过 FILE 文件指针进行文件操作。
+
+<img src="./assets/image-20231023202203474.png" alt="image-20231023202203474" style="zoom:80%;" />
+
+<img src="./assets/image-20231023202409922.png" alt="image-20231023202409922" style="zoom:80%;" />
+
+## 2. 虚拟地址空间
+
+**以 32 位计算机为例：**
+
+32 位计算机会为每个进程分配 4G 的虚拟地址空间，包括内核区（只能通过 **系统调用** 进行操作）和用户区。虚拟地址空间最终会被 MMU 映射到物理地址空间。
+
+<img src="./assets/image-20231023203022758.png" alt="image-20231023203022758" style="zoom: 70%;" />
+
+## 3. 文件描述符
+
+![image-20231023204302508](./assets/image-20231023204302508.png)
+
+- **文件描述符表** 被保存在进程的内核区，由内核区内的 **PCB 进程控制块** 维护。
+- 文件描述符表是一个数组，大小默认是 1024（每个进程默认最多可以同时打开 1024 个文件）。
+- 文件描述符表中：0（标准输入）、1（标准输出）、2（标准错误），默认打开，指向当前终端。
+- **一个文件可以被同时打开 n 次，每次打开得到的文件描述符是不一样的。**
+
+## 4. `open` 函数
+
+查看 `open` 函数：
+
+```shell
+man 2 open
+```
+
+
+
+头文件：
+
+```c
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+```
+
+
+
+有两个 `open` 函数，一个用来打开已经存在的文件，一个用来创建新的文件。
+
+```c
+int open(const char *pathname, int flags);
+/*
+参数：
+    - pathname：文件路径
+    - flags：对文件操作的权限设置及其他（O_RDONLY 只读, O_WRONLY 只写, or O_RDWR 读写，只能选一个）
+  返回值：
+    - 一个新的文件描述符（若调用失败，返回 -1）
+*/
+```
+
+```c
+int open(const char *pathname, int flags, mode_t mode);
+```
+
+
+
+e.g.
+
+```c
+/*
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+// 打开一个已经存在的文件
+int open(const char *pathname, int flags);
+  参数：
+    - pathname：文件路径
+    - flags：对文件操作的权限设置及其他（O_RDONLY 只读, O_WRONLY 只写, or O_RDWR 读写，只能选一个）
+  返回值：
+    - 一个新的文件描述符（若调用失败，返回 -1）
+*/
+
+/*
+#include <unistd.h>
+
+int close(int fd);  //关闭文件，并使得文件描述符可以被再次使用
+  参数：
+    - fd：要关闭的文件描述符
+*/
+
+/*
+errno：属于 linux 系统函数库，是一个全局变量，记录最近的错误号。可以调用 perror 函数获取错误号对应的错误描述。
+
+#include <stdio.h>
+
+void perror(const char *s);     // 打印 errno 对应的错误描述，没有返回值。
+  参数：
+    - 用户描述（最后打印为 s:错误描述）
+*/
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
+
+int main()
+{
+    int fd = open("a.txt", O_RDONLY);
+
+    if(fd == -1)
+    {
+        perror("open");     // print error desc
+    } 
+
+    // close file desc
+    close(fd);
+}
+```
+
+运行结果：
+
+<img src="./assets/image-20231023211359839.png" alt="image-20231023211359839" style="zoom:80%;" />

@@ -204,6 +204,73 @@ print(a) # a = ['0 能整除 3', 1, 2, '3 能整除 3', 4, '5 能整除 5', '6 �
 
 <hr style="border:3px #6CA6CD double;">
 
+### 6. set
+
+
+```
+st = set()
+
+# 插入简单数据类型
+st.add(key)
+
+if key in st:
+    pass
+
+# 插入元组
+st.add((key, value))
+
+if (key, value) in st:
+    pass
+```
+
+### 7.dict
+
+1. dict.get
+
+```python
+dict.get(key, default=None)
+```
+
+- key -- 字典中要查找的键。
+- default -- 如果指定键的值不存在时，返回该默认值。
+
+2. dict.update
+
+   ```python
+   default.update(config['lr'])   # update：更新字典中的键值对（没有则添加，有则更新）
+   
+   ```
+
+### 8. yield
+
+用于生成器函数，暂停函数的执行，并将值返回给调用者，同时保持函数的状态，以便在以后的调用中继续执行。
+
+
+
+e.g.
+
+```
+yield t, image[None], intrinsics 	# 返回一个包含三个值的元组，这些值将被生成器函数提供给调用者：
+```
+
+### 9. array[None] / tensor[None]
+
+创建新维度，帮助你改变数据的形状，通常用于将单个数据示例转换为包含示例的批处理数据。
+
+```
+import numpy as np
+
+# 创建一个一维数组
+array = np.array([1, 2, 3, 4, 5])
+
+# 使用 array[None] 添加一个新维度，将其转换为一个二维数组（批处理数据）
+batch_array = array[None]
+
+# batch_array 现在是一个形状为 (1, 5) 的二维数组
+```
+
+
+
 ## B. 类内函数
 
 ### 1. `__call__()`
@@ -329,7 +396,9 @@ class Test(object):
 
 ---
 
-## 
+## `self.__dict__.update(cfg)` 这行代码用于将字典 `cfg` 中的键值对更新（或合并）到对象 `self` 的属性中。在这里，`self` 是一个对象，通常是某个类的实例，而 `cfg` 是一个字典对象。
+
+具体来说，`self.__dict__` 是对象 `self` 的属性字典，包含了该对象的所有属性。`update()` 方法用于将字典 `cfg` 中的键值对添加到 `self.__dict__` 中，从而更新对象的属性。这意味着，`self` 的属性将包括来自 `cfg` 的键值对
 
 <hr style="border:3px #6CA6CD double;">
 
@@ -404,7 +473,139 @@ all_files = glob.glob("/path/to/directory/**/*", recursive=True)
 
 [golb.glob]: https://blog.csdn.net/shary_cao/article/details/122050756?ops_request_misc=&amp;request_id=&amp;biz_id=102&amp;utm_term=glob.glob&amp;utm_medium=distribute.pc_search_result.none-task-blog-2~all~sobaiduweb~default-3-122050756.142^v95^insert_down1&amp;spm=1018.2226.3001.4187	"golb.glob"
 
+## logging
+
+`logging` 模块保证 **在同一个 Python 解释器内（即时在多个模块中），多次调用`logging.getLogger('log_name')` 都会返回同一个 `logger` 实例**。
+
+典型的多模块场景下使用 `logging` 的方式是在 main 模块中配置 `logging` ，然后在其他模块中直接通过 getLogger 获取 `Logger` 对象即可。
+
+```
+logger = logging.getLogger('global', logging.INFO)
+```
+
+
+
+## json
+
+### 1. json.dumps
+
+将 Python 对象（通常是字典）转换为 JSON 格式的字符串，并添加缩进格式以提高可读性的操作
+
+```
+json.dumps(cfg, indent=4)
+```
+
+### 2.  json.load
+
+```
+config = json.load(open(args.config))
+```
+
+从打开的文件对象中读取数据并将其解析为 Python 数据结构，通常是嵌套的字典和列表。这通常是一个字典或其他嵌套的数据结构，代表了配置文件中的信息。
+
+## multiprocessing
+
+Python 的 `multiprocessing` 模块用于实现多进程编程，允许你创建和管理多个并发运行的进程。以下是使用 `multiprocessing` 模块的一般步骤：
+
+1. 导入 `multiprocessing` 模块：
+
+```
+pythonCopy code
+import multiprocessing
+```
+
+1. 创建一个要在多个进程中执行的函数。这个函数通常是你希望并行执行的任务。函数可以接受参数并返回结果。
+2. 在主程序中，使用 `multiprocessing.Process` 类创建并启动多个进程。例如：
+
+```
+pythonCopy codedef my_function(arg1, arg2):
+    # 在此处执行你的任务
+    pass
+
+if __name__ == '__main__':
+    processes = []
+    for i in range(4):  # 你可以根据需要创建多个进程
+        p = multiprocessing.Process(target=my_function, args=(arg1, arg2))
+        p.start() 	# 启动进程
+        processes.append(p)
+
+    for p in processes:
+        p.join() 	# 连接
+```
+
+在上述示例中，`my_function` 是你的任务函数，你可以向其中传递参数 `arg1` 和 `arg2`。`multiprocessing.Process` 用于创建新的进程，然后使用 `start()` 启动它们。最后，使用 `join()` 等待所有进程完成。
+
+1. 通过 `if __name__ == '__main__'` 来包装主程序。这是为了确保在派生的子进程中执行多进程代码时不会导致递归启动。
+2. 在主程序中，你可以使用 `multiprocessing.Queue`、`multiprocessing.Manager` 等工具来共享数据和通信。这些工具允许不同进程之间进行数据传递和共享。
+3. 如果需要，可以使用 `multiprocessing.Pool` 来创建进程池，以更方便地管理一组并行执行的任务。
+4. 最后，确保遵循多进程编程的最佳实践，以避免潜在的问题，如数据竞争和进程之间的同步问题。
+
+`multiprocessing` 模块提供了丰富的功能，用于多进程编程，可以在并行计算、数据处理、任务分发等应用中发挥作用。
+
+在 Python 中，你可以使用 `multiprocessing` 模块来创建共享变量和进行进程间通信。以下是一些常见的方式：
+
+1. 使用 `multiprocessing.Value` 和 `multiprocessing.Array` 创建共享变量：
+
+`multiprocessing` 模块提供了 `Value` 和 `Array` 来创建共享变量，它们可以在多个进程之间访问和修改。`Value` 用于创建单个值的共享变量，而 `Array` 用于创建数组类型的共享变量。
+
+```
+pythonCopy codeimport multiprocessing
+
+# 创建一个共享整数
+shared_value = multiprocessing.Value('i', 0)
+
+# 创建一个共享数组
+shared_array = multiprocessing.Array('d', [1.0, 2.0, 3.0])
+```
+
+在这里，'i' 表示整数，'d' 表示双精度浮点数。你可以根据需要选择合适的数据类型。
+
+1. 使用 `multiprocessing.Queue` 进行进程间通信：
+
+`Queue` 是一种用于进程间通信的数据结构，它允许一个进程将数据放入队列，另一个进程从队列中获取数据。这是一种非常常见的方式来在多个进程之间传递数据。
+
+Queue的功能是将每个核或线程的运算结果放在队里中， 等到每个线程或核运行完毕后再从队列中取出结果， 继续加载运算。原因很简单, 多线程调用的函数不能有返回值, 所以使用Queue存储多个线程运算的结果
+
+```
+pythonCopy codeimport multiprocessing
+
+# 创建一个队列
+queue = multiprocessing.Queue()
+
+# 向队列中放入数据
+queue.put("Hello from Process 1")
+
+# 从队列中获取数据
+data = queue.get()
+```
+
+1. 使用 `multiprocessing.Pipe` 进行双向通信：
+
+`Pipe` 是一种双向通信管道，允许两个进程之间进行双向通信。一个进程可以发送消息到管道，另一个进程可以接收并回复。
+
+```
+pythonCopy codeimport multiprocessing
+
+# 创建一个管道
+conn1, conn2 = multiprocessing.Pipe()
+
+# 在一个进程中发送消息
+conn1.send("Hello from Process 1")
+
+# 在另一个进程中接收消息
+data = conn2.recv()
+
+# 回复消息
+conn2.send("Hello back from Process 2")
+
+# 在第一个进程中接收回复
+response = conn1.recv()
+```
+
+这些是一些常见的方式来创建共享变量和进行进程间通信。你可以根据你的具体需求选择合适的方式。在多进程编程中，确保适当的同步和互斥是非常重要的，以避免数据竞争和进程之间的问题。
+
 <hr style="border:5px #0D0D0D solid;">
+
 
 # pytorch
 
@@ -921,3 +1122,50 @@ model = nn.Sequential(OrderedDict([
 
 
 <hr style="border:1px #cccccc dotted;">
+
+<hr style="border:3px #6CA6CD double;">
+
+## 5. torch.multiprocessing
+
+0.导入模块
+
+```
+import torch
+import torch.multiprocessing as mp
+```
+
+**1. torch.multiprocessing.set_start_method('spawn')** 设置多进程的启动方式
+
+在创建任何进程前调用一次，设置多进程。
+
+**2.torch.multiprocessing.Process(target=func, args=(...))** 创建并启动多个进程进行函数 func
+
+
+
+e.g.
+
+```
+import torch
+import torch.multiprocessing as mp
+
+if mp.get_start_method(allow_none=True) is None:
+    mp.set_start_method('spawn')
+
+def my_function(arg1, arg2):
+    # 在此处执行你的任务
+    pass
+
+if __name__ == '__main__':
+    processes = []
+    for i in range(4):  # 你可以根据需要创建多个进程
+        p = mp.Process(target=my_function, args=(arg1, arg2))
+        p.start()
+        processes.append(p)
+
+    for p in processes:
+        p.join()
+```
+
+**3.torch.share_memory_()**
+
+将张量标记为共享内存张量，共享内存张量可以在多个进程之间共享，用于多进程并行计算。
