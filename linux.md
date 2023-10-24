@@ -645,6 +645,15 @@ int open(const char *pathname, int flags);
 
 ```c
 int open(const char *pathname, int flags, mode_t mode);
+/*
+  参数：
+    - pathname：要创建的文件的路径
+    - flags：对文件操作的权限设置及其他设置
+      - 必选项（互斥，必须选一个）：O_RDONLY 只读, O_WRONLY 只写, or O_RDWR 读写；
+      - 可选项：O_APPEND 追加，O_CREAT 文件不存在则创建
+    - mode：八进制数，表示用户对创建的新文件的操作权限，最终的权限为 mode & ~umask。e.g. 0777（最高权限）
+  返回值：新创建文件的文件描述符
+*/
 ```
 
 
@@ -707,3 +716,161 @@ int main()
 运行结果：
 
 <img src="./assets/image-20231023211359839.png" alt="image-20231023211359839" style="zoom:80%;" />
+
+```c
+/*
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+// 创建一个新文件，并打开
+int open(const char *pathname, int flags, mode_t mode);
+  参数：
+    - pathname：要创建的文件的路径
+    - flags：对文件操作的权限设置及其他设置
+      - 必选项（互斥，必须选一个）：O_RDONLY 只读, O_WRONLY 只写, or O_RDWR 读写；
+      - 可选项：O_APPEND 追加，O_CREAT 文件不存在则创建
+    - mode：八进制数，表示用户对创建的新文件的操作权限，最终的权限为 mode & ~umask。e.g. 0777（最高权限）
+  返回值：新创建文件的文件描述符
+*/
+
+/*
+#include <unistd.h>
+
+int close(int fd);  //关闭文件，并使得文件描述符可以被再次使用
+  参数：
+    - fd：要关闭的文件描述符
+*/
+
+/*
+errno：属于 linux 系统函数库，是一个全局变量，记录最近的错误号。可以调用 perror 函数获取错误号对应的错误描述。
+
+#include <stdio.h>
+
+void perror(const char *s);     // 打印 errno 对应的错误描述，没有返回值。
+  参数：
+    - 用户描述（最后打印为 s:错误描述）
+*/
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
+
+int main()
+{
+    int fd = open("a.txt", O_RDWR | O_CREAT, 0777);
+
+    if(fd == -1)
+    {
+        perror("open");     // print error desc
+    } 
+
+    // close file desc
+    close(fd);
+}
+```
+
+### 5. read 和 write
+
+read:
+
+```c
+ssize_t read(int fd, void *buf, size_t count);
+/*  
+参数：
+    - fd：文件描述符
+    - buf：缓冲区
+    - count：指定的 buf 数组的大小
+  返回值：
+    - 调用成功，返回读取的字节数（字节数为 0, 表示文件读取完毕）；调用失败，返回 -1，并且设置 errno。
+*/
+```
+
+write:
+
+```c
+ssize_t write(int fd, const void *buf, size_t count);
+/*
+参数：
+    - fd：文件描述符
+    - buf：缓冲区
+    - count：要写入的数据大小
+  返回值：
+    - 调用成功，返回写入的字节数（字节数为 0, 表示文件读取完毕）；调用失败，返回 -1，并且设置 errno。
+*/
+```
+
+
+
+```c
+/**
+#include <unistd.h>
+
+ssize_t read(int fd, void *buf, size_t count);
+  参数：
+    - fd：文件描述符
+    - buf：缓冲区
+    - count：指定的 buf 数组的大小
+  返回值：
+    - 调用成功，返回读取的字节数（字节数为 0, 表示文件读取完毕）；调用失败，返回 -1，并且设置 errno。
+*/
+
+/*
+#include <unistd.h>
+
+ssize_t write(int fd, const void *buf, size_t count);
+参数：
+    - fd：文件描述符
+    - buf：缓冲区
+    - count：要写入的数据大小
+  返回值：
+    - 调用成功，返回写入的字节数（字节数为 0, 表示文件读取完毕）；调用失败，返回 -1，并且设置 errno。
+
+*/
+
+#include <unistd.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+int main()
+{
+    // 打开要读取的文件
+    int srcfd = open("english.txt", O_RDONLY);
+    if(srcfd == -1)
+    {
+        perror("open");
+        return -1;
+    }
+
+    // 创建并打开要写入的文件
+    int desfd = open("cpy.txt", O_RDWR |O_CREAT, 0777);
+    if(desfd == -1)
+    {
+        perror("open");
+        return -1;
+    }
+
+    // 创建缓冲区
+    char buf[1024] = {0};
+
+    int len = 0;
+    while((len=read(srcfd, buf, sizeof(buf))) > 0)  // 只要还没读完，就一直写入
+    {
+        write(desfd, buf, len);     // 读入多少 len 写入多少 len
+    }
+
+    // 关闭文件
+    close(srcfd);
+    close(desfd);
+    return 0;
+}
+```
+
+![image-20231024103828530](./assets/image-20231024103828530.png)
+
+### 6. lseek
+
