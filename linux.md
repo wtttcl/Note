@@ -874,3 +874,118 @@ int main()
 
 ### 6. lseek
 
+```c
+/*
+#include <sys/types.h>
+#include <unistd.h>
+
+off_t lseek(int fd, off_t offset, int whence);
+  参数：
+    fd：文件描述符，通过 open 得到;
+    offset：偏移量
+    whence：标记，设置文件指针偏移量
+      - SEEK_SET：设置偏移量：offset;
+      - SEEK_CUR：设置偏移量：当前位置 + offset;
+      - SEEK_END：设置偏移量：文件大小 + offset;
+
+  返回值：返回文件指针最终的位置
+
+  作用：
+    - 移动文件指针到文件头：lseek(fd, 0, SEEK_SET);
+    - 获取当前文件指针的位置：lseek(fd, 0, SEEK_CUR);
+    - 获取文件长度：lseek(fd, 0, SEEK_END);
+    - 拓展文件长度：lseek(fd, 100, SEEK_END);   // 最好在末尾写入一些字符才能实现拓展
+*/
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <stdio.h>
+
+int main()
+{
+    int fd = open("hello.txt", O_RDWR);
+    if(fd == -1)
+    {
+        perror("open");
+        return -1;
+    }
+
+    int res = lseek(fd, 100, SEEK_END);
+    if(res == -1)
+    {
+        perror("lseek");
+        return -1;
+    }
+
+    // 写入数据
+    write(fd, " ", 1);
+    close(fd);
+    return 0;
+}
+```
+
+
+
+### 7. stat 和 lstat
+
+![image-20231030202038713](C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20231030202038713.png)
+
+![image-20231030202530840](C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20231030202530840.png)
+
+st_mode: 16位数
+
+![image-20231030202730771](C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20231030202730771.png)
+
+![image-20231030203506355](C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20231030203506355.png)
+
+![image-20231030203634614](C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20231030203634614.png)
+
+stat 获取的是软连接指向的文件的信息，lstat可以获取软连接的信息。
+
+```c
+/*
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/stat.h>
+
+int stat(const char *pathname, struct stat *statbuf);
+  参数：
+    - pathname：文件路径
+    - statbuf：结构体变量，接收获取的文件相关信息
+
+  返回值：调用成功，返回0；调用失败，返回-1，并设置 errno
+  作用：获取一个文件的相关信息
+
+  int lstat(const char *pathname, struct stat *statbuf);
+*/
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <stdio.h>
+
+int main()
+{
+    struct stat statbuf;
+    int ret = stat("hello.txt", &statbuf);
+
+    if(ret == -1)
+    {
+        perror("stat");
+        return -1;
+    }
+
+    printf("size:%d\n", statbuf.st_size);
+
+    return 0;
+}
+```
+
+## 8. 模拟实现 ls -l 命令
+
+## 9. 文件属性操作函数
+
+### a. access
+
