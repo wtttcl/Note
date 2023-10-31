@@ -1,6 +1,6 @@
 # gcc
 
-GCC 原名 GNU C 语言编译器（GNU C Compiler），只能处理C语言。但其很快扩展，变得可处理C++，后来又扩展为能够支持更多编程语言，如Pascal、Objective -C、Java、Go以及各类处理器架构上的汇编语言等，所以改名GNU编译器套件（GNU Compiler Collection）。
+GCC 原名 GNU C 语言编译器（GNU C Compiler），只能处理 C 语言。但其很快扩展，变得可处理 C++，后来又扩展为能够支持更多编程语言，如 Pascal、Objective -C、Java、Go 以及各类处理器架构上的汇编语言等，所以改名 GNU 编译器套件（GNU Compiler Collection）。
 
 
 
@@ -24,7 +24,22 @@ GCC 原名 GNU C 语言编译器（GNU C Compiler），只能处理C语言。但
 
 <img src="./assets/c46f3622f0908474c6f31f891628626.jpg" alt="c46f3622f0908474c6f31f891628626" style="zoom:45%;" />
 
+<img src="./assets/03cb0d48c26a96a88c4d6141f65ae4a.jpg" alt="03cb0d48c26a96a88c4d6141f65ae4a" style="zoom: 35%;" />
+
+- 预处理后源代码：删去注释、宏替换等
+- **`-o` 本质上是一个重命名选项，直接执行 `gcc test.c` 也会生成可执行文件 `a.out`**。
+- **当只有一个目标代码时，`-o`可有可无。**
+
 ```shell
+gcc test.c -E -o test.i 	# 生成预处理后文件 test.i， -E 预处理 -o 生成目标文件
+
+gcc test.i -S -o test.s 	# 生成编译后文件 test.s， -S 编译 -o 生成目标文件
+
+gcc test.s -c -o test.o 	# 生成汇编后文件 test.o， -S 编译 -o 生成目标文件
+
+gcc test.o -o test.out 		# 生成链接后文件 test.out， -o 生成目标文件
+
+
 # gcc file_name.c -o target_name 将 file_name.c 编译成可执行文件（可执行文件名为 target_name）
 gcc test.c -o test
 
@@ -39,25 +54,11 @@ gcc filename.c
 ./a.out 	# linux 默认的可执行文件名
 ```
 
+- **`-I` 指定头文件目录**
+- **`-L` 指定库路径**
+- **`-l` 指定库**
 
-
-<img src="./assets/03cb0d48c26a96a88c4d6141f65ae4a.jpg" alt="03cb0d48c26a96a88c4d6141f65ae4a" style="zoom: 35%;" />
-
-- 预处理后源代码：删去注释、宏替换等
-
-```
-gcc test.c -E -o test.i 	# 生成预处理后文件 test.i， -E 预处理 -o 生成目标文件
-
-gcc test.i -S -o test.s 	# 生成编译后文件 test.s， -S 编译 -o 生成目标文件
-
-gcc test.s -c -o test.o 	# 生成汇编后文件 test.o， -S 编译 -o 生成目标文件
-
-gcc test.o -o test.out 		# 生成链接后文件 test.out， -o 生成目标文件
-```
-
-
-
-**`-D` 调试，与宏搭配使用。**
+- **`-D` 调试，与宏搭配使用。**
 
 ```c
 // test.c
@@ -91,7 +92,9 @@ main()
 }
 ```
 
-**`-I` 指定头文件目录**
+<hr style="border:3px #6CA6CD double;">
+
+
 
 # 静态库和动态库
 
@@ -100,8 +103,8 @@ main()
 - 计算机上的一类文件，可以简单地把库文件看成一种代码仓库，它提供给使用者一些可以直接拿来用的变量、函数或类。
 - 库是一种特殊的程序，编写上和一般地程序没有较大的区别，但是不能单独运行。
 - 库文件有两种“静态库和动态库（共享库）。
-  - 静态库：在程序的链接阶段被复制到程序中；（一般比较小）
-  - 动态库：在程序的链接阶段没有被复制到程序中，在程序的运行阶段（调用动态库 api 时）由系统动态加载到内存中供程序调用，通过 ldd (list dynamic depencencies) 命令检查动态库依赖关系。（一般比较大）
+  - 静态库：在程序的  **链接阶段** 被 **复制** 到程序中；（一般比较小）
+  - 动态库：在程序的链接阶段没有被复制到程序中，在程序的 **运行阶段**（调用动态库 api 时）由系统 **动态加载到内存中供程序调用**，通过 ldd (list dynamic depencencies) 命令检查动态库依赖关系。（一般比较大）
 - 库的好处：①代码保密。②方便部署和开发。
 - 库文件要和头文件（说明库中 api）一起分发。
 
@@ -313,7 +316,7 @@ app 可执行程序可以正常执行了。
 
 # Makefile
 
-- Makefile 文件定义了一系列的规则来指定哪些文件需要先编译，哪些文件需要后编 译，哪些文件需要重新编译，甚至于进行更复杂的功能操作，因为 Makefile 文件就 像一个 Shell 脚本一样，也可以执行操作系统的命令。
+- Makefile 文件定义了一系列的规则来指定哪些文件需要先编译，哪些文件需要后编译，哪些文件需要重新编译，甚至于进行更复杂的功能操作，因为 Makefile 文件就 像一个 Shell 脚本一样，也可以执行操作系统的命令。
 - 自动化编译。一旦写好，只需要一个 make 命令，整 个工程完全自动编译，极大的提高了软件开发的效率。
 - make 是一个命令工具，是一个 解释 Makefile 文件中指令的命令工具。
 
@@ -593,6 +596,10 @@ until （跳出循环）
 
 <img src="./assets/image-20231023202409922.png" alt="image-20231023202409922" style="zoom:80%;" />
 
+---
+
+
+
 ## 2. 虚拟地址空间
 
 **以 32 位计算机为例：**
@@ -600,6 +607,10 @@ until （跳出循环）
 32 位计算机会为每个进程分配 4G 的虚拟地址空间，包括内核区（只能通过 **系统调用** 进行操作）和用户区。虚拟地址空间最终会被 MMU 映射到物理地址空间。
 
 <img src="./assets/image-20231023203022758.png" alt="image-20231023203022758" style="zoom: 70%;" />
+
+---
+
+
 
 ## 3. 文件描述符
 
@@ -609,6 +620,8 @@ until （跳出循环）
 - 文件描述符表是一个数组，大小默认是 1024（每个进程默认最多可以同时打开 1024 个文件）。
 - 文件描述符表中：0（标准输入）、1（标准输出）、2（标准错误），默认打开，指向当前终端。
 - **一个文件可以被同时打开 n 次，每次打开得到的文件描述符是不一样的。**
+
+---
 
 
 
@@ -1072,7 +1085,7 @@ int main()
 
 
 
-## 7. `stat` 和 `fstat` 和 `lstat`
+## 9. `stat` 和 `fstat` 和 `lstat`
 
 ### a. 查看 `stat` 和 `fstat` 和 `lstat`函数
 
@@ -1232,7 +1245,7 @@ int main()
 
 
 
-## 8. 模拟实现 `ls -l` 命令
+## 10. 模拟实现 `ls -l` 命令
 
 ```c
 /*
@@ -1341,9 +1354,466 @@ int main(int argc, char * argv[])
 }
 ```
 
+---
 
 
-## 9. 文件属性操作函数
 
-### a. access
+## 11. 文件属性操作函数
+
+### a. `access`
+
+**头文件：**
+
+```c
+ #include <unistd.h>
+```
+
+
+
+**access：**
+
+```c
+int access(const char *pathname, int mode);
+/*
+  参数：
+    - pathname：要判断的文件路径
+    - mode：要判断的权限
+        - R_OK: 判断是否有读权限
+        - W_OK: 判断是否有写权限
+        - X_OK: 判断是否有执行权限
+        - F_OK: 判断文件是否存在
+  作用：
+    - 判断用户对某个文件是否有某个权限或某个文件是否存在
+
+  返回值：
+    - 调用成功，返回0；调用失败，返回-1
+*/
+```
+
+
+
+**e.g.**
+
+```c
+/*
+#include <unistd.h>
+
+int access(const char *pathname, int mode);
+  参数：
+    - pathname：要判断的文件路径
+    - mode：要判断的权限
+        - R_OK: 判断是否有读权限
+        - W_OK: 判断是否有写权限
+        - X_OK: 判断是否有执行权限
+        - F_OK: 判断文件是否存在
+  作用：
+    - 判断用户对某个文件是否有某个权限或文件是否存在
+
+  返回值：
+    - 调用成功，返回0；调用失败，返回-1
+*/
+
+#include <unistd.h>
+#include <stdio.h> 	// 标准输入输出库的头文件，perror 头文件
+
+int main()
+{
+
+    int ret = access("a.txt", F_OK);
+    if(ret == -1)
+    {
+        perror("access");
+        return -1;
+    }
+
+    printf("success!\n");
+
+    return 0;
+}
+```
+
+
+
+### b. `chmod`
+
+**头文件：**
+
+```c
+#include <sys/stat.h>
+```
+
+
+
+**chmod：**
+
+```c
+int chmod(const char *pathname, mode_t mode);
+/*
+  参数：
+    - pathname：需要修改权限的文件路径
+    - mode：需要修改的权限值
+
+  返回值：
+    - 调用成功，返回0；调用失败，返回-1，并设置errno
+
+  作用：
+    - 修改某个文件的权限
+*/
+```
+
+
+
+**e.g.**
+
+```c
+/*
+#include <sys/stat.h>
+
+int chmod(const char *pathname, mode_t mode);
+  参数：
+    - pathname：需要修改权限的文件路径
+    - mode：需要修改的权限值
+
+  返回值：
+    - 调用成功，返回0；调用失败，返回-1，并设置errno
+
+  作用：
+    - 修改某个文件的权限
+*/
+
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/stat.h>
+
+int main()
+{
+    int ret = chmod("a.txt", 0775);
+    if(ret == -1)
+    {
+        perror("chmod");
+        return -1;
+    }
+
+    printf("success!\n");
+
+    return 0;
+}
+```
+
+
+
+### c. `chown`
+
+**头文件：**
+
+```c
+#include <unistd.h>
+```
+
+
+
+**chown：**
+
+```c
+int chown(const char *pathname, uid_t owner, gid_t group);
+/*
+  参数：
+    - pathname：需要修改所有者的文件路径
+    - owner：新的所有者ID 	（通过 vim /etc/passwd 查询所有用户ID）
+    - groud：新的组ID 	（通过 vim /etc/group 查询所有组ID）
+
+  返回值：
+    - 调用成功，返回0；调用失败，返回-1，并设置errno
+
+  作用：
+    - 修改某个文件的所有者
+*/
+```
+
+### d. `truncate`
+
+**头文件：**
+
+```c
+#include <unistd.h>
+#include <sys/types.h>
+```
+
+
+
+**truncate：**
+
+```c
+int truncate(const char *path, off_t length);
+/*
+  参数：
+    - path：需要修改的文件路径
+    - length：文件最终的大小
+
+  返回值：
+    - 调用成功，返回0；调用失败，返回-1，并设置errno
+
+  作用：
+    - 缩减（会截断）或拓展（空字符填充）文件的尺寸至指定的大小
+*/
+```
+
+---
+
+
+
+## 12. 目录操作函数
+
+### a. `mkdir`
+
+**头文件：**
+
+```c
+#include <sys/stat.h>
+#include <sys/types.h>
+```
+
+
+
+```c
+int mkdir(const char *pathname, mode_t mode);
+/*
+  参数：
+	- pathname: 创建的目录的路径
+	- mode: 目录权限，八进制的数
+	
+  返回值：
+	- 调用成功，返回0；调用失败，返回-1，并设置errno
+	
+  作用：
+    - 创建一个目录
+*/
+```
+
+**e.g.**
+
+```c
+/*
+#include <sys/stat.h>
+#include <sys/types.h>
+
+int mkdir(const char *pathname, mode_t mode);
+  参数：
+	- pathname: 创建的目录的路径
+	- mode: 目录权限，八进制的数
+	
+  返回值：
+	- 调用成功，返回0；调用失败，返回-1，并设置errno
+	
+  作用：
+    - 创建一个目录
+*/
+
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <stdio.h>
+
+int main() {
+
+    int ret = mkdir("aaa", 0777);
+
+    if(ret == -1) {
+        perror("mkdir");
+        return -1;
+    }
+
+    return 0;
+}
+```
+
+
+
+### b. `rmdir`
+
+**头文件：**
+
+```c
+#include <unistd.h>
+```
+
+
+
+```c
+int rmdir(const char *pathname);
+/*
+  参数：
+	- pathname: 要删除的目录路径
+	
+  返回值：
+	- 调用成功，返回0；调用失败，返回-1，并设置errno
+	
+  作用：
+    - 删除空目录（只能删除空目录）
+*/
+```
+
+### c. `rename`
+
+**头文件：**
+
+```c
+#include <stdio.h>
+```
+
+
+
+```c
+int rename(const char *oldpath, const char *newpath);
+/*
+  参数：
+	- oldpath: 要重命名的目录路径
+    - newpath：重命名后的目录路径
+	
+  返回值：
+	- 调用成功，返回0；调用失败，返回-1，并设置errno
+	
+  作用：
+    - 重命名目录
+*/
+```
+
+**e.g.**
+
+```c
+/*
+#include <stdio.h>
+
+int rename(const char *oldpath, const char *newpath);
+  参数：
+	- oldpath: 要重命名的目录路径
+    - newpath：重命名后的目录路径
+	
+  返回值：
+	- 调用成功，返回0；调用失败，返回-1，并设置errno
+	
+  作用：
+    - 重命名目录
+*/
+
+#include <stdio.h>
+
+int main() {
+
+    int ret = rename("aaa", "bbb");
+
+    if(ret == -1) {
+        perror("rename");
+        return -1;
+    }
+
+    return 0;
+}
+```
+
+
+
+### d. `chdir`  和 `getcwd`
+
+头文件：
+
+```c
+#include <unistd.h>
+```
+
+
+
+```c
+int chdir(const char *path);
+/*
+  参数：
+	- path : 需要修改的工作目录
+	
+  返回值：
+	- 调用成功，返回0；调用失败，返回-1，并设置errno
+
+  作用：
+    - 修改进程的工作目录
+*/
+```
+
+```c
+char *getcwd(char *buf, size_t size);
+/*
+  参数：
+	- buf: 存储的路径，指向的是一个数组（传出参数）
+    - size: 数组的大小
+	
+  返回值：
+	- 返回的指向的一块内存，这个数据就是第一个参数
+	
+  作用：
+    - 获取当前工作目录
+*/
+```
+
+```c
+/*
+#include <unistd.h>
+
+int chdir(const char *path);
+  参数：
+    - path : 修改后的工作目录
+	
+  返回值：
+	- 调用成功，返回0；调用失败，返回-1，并设置errno
+
+  作用：
+    - 修改进程的工作目录
+
+char *getcwd(char *buf, size_t size);
+  参数：
+	- buf: 存储的路径，指向的是一个数组（传出参数）
+    - size: 数组的大小
+	
+  返回值：
+	- 返回的指向的一块内存，这个数据就是第一个参数
+	
+  作用：
+    - 获取当前工作目录
+*/
+
+#include <unistd.h>
+#include <stdio.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
+
+int main() {
+
+    // 获取当前的工作目录
+    char buf[128];
+    getcwd(buf, sizeof(buf));
+    printf("当前的工作目录是：%s\n", buf);
+
+    // 修改工作目录
+    int ret = chdir("/home/nowcoder/Linux/lesson13");
+    if(ret == -1) {
+        perror("chdir");
+        return -1;
+    } 
+
+    // 创建一个新的文件
+    int fd = open("chdir.txt", O_CREAT | O_RDWR, 0664);
+    if(fd == -1) {
+        perror("open");
+        return -1;
+    }
+
+    close(fd);
+
+    // 获取当前的工作目录
+    char buf1[128];
+    getcwd(buf1, sizeof(buf1));
+    printf("当前的工作目录是：%s\n", buf1);
+    
+    return 0;
+}
+```
+
+---
 
