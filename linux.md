@@ -610,9 +610,32 @@ until （跳出循环）
 - 文件描述符表中：0（标准输入）、1（标准输出）、2（标准错误），默认打开，指向当前终端。
 - **一个文件可以被同时打开 n 次，每次打开得到的文件描述符是不一样的。**
 
-## 4. `open` 函数
 
-查看 `open` 函数：
+
+## 4. `errno`
+
+`errno`：属于 linux 系统函数库，是一个全局变量，**记录最近的错误号**。可以调用 `perror` 函数获取错误号对应的错误描述。
+
+```c
+/*
+#include <stdio.h>
+
+void perror(const char *s);     // 打印 errno 对应的错误描述，没有返回值。
+  参数：
+    - 用户描述（最后打印为 s:错误描述）
+    
+  作用：
+    - 输出 “用户描述：错误描述”。
+*/
+```
+
+---
+
+
+
+## 5. `open` 
+
+### a. 查看 `open` 函数
 
 ```shell
 man 2 open
@@ -620,7 +643,7 @@ man 2 open
 
 
 
-头文件：
+### b. 头文件
 
 ```c
 #include <sys/types.h>
@@ -630,18 +653,28 @@ man 2 open
 
 
 
+### c. `open`
+
 有两个 `open` 函数，一个用来打开已经存在的文件，一个用来创建新的文件。
 
 ```c
 int open(const char *pathname, int flags);
 /*
-参数：
+  参数：
     - pathname：文件路径
-    - flags：对文件操作的权限设置及其他（O_RDONLY 只读, O_WRONLY 只写, or O_RDWR 读写，只能选一个）
+    - flags：对文件操作的权限设置及其他设置
+      - 必选项（互斥，必须选一个）：O_RDONLY 只读, O_WRONLY 只写, or O_RDWR 读写；
+      - 可选项：O_APPEND 追加，...
+    
   返回值：
-    - 一个新的文件描述符（若调用失败，返回 -1）
+    - 调用成功，返回一个新的文件描述符；调用失败，返回 -1
+  
+  作用：
+    - 打开文件，返回文件描述符
 */
 ```
+
+
 
 ```c
 int open(const char *pathname, int flags, mode_t mode);
@@ -652,7 +685,12 @@ int open(const char *pathname, int flags, mode_t mode);
       - 必选项（互斥，必须选一个）：O_RDONLY 只读, O_WRONLY 只写, or O_RDWR 读写；
       - 可选项：O_APPEND 追加，O_CREAT 文件不存在则创建
     - mode：八进制数，表示用户对创建的新文件的操作权限，最终的权限为 mode & ~umask。e.g. 0777（最高权限）
-  返回值：新创建文件的文件描述符
+    
+  返回值：
+    - 调用成功，返回一个新的文件描述符；调用失败，返回 -1
+  
+  作用：
+    - 创建并打开文件，返回文件描述符
 */
 ```
 
@@ -670,34 +708,22 @@ e.g.
 int open(const char *pathname, int flags);
   参数：
     - pathname：文件路径
-    - flags：对文件操作的权限设置及其他（O_RDONLY 只读, O_WRONLY 只写, or O_RDWR 读写，只能选一个）
+    - flags：对文件操作的权限设置及其他设置
+      - 必选项（互斥，必须选一个）：O_RDONLY 只读, O_WRONLY 只写, or O_RDWR 读写；
+      - 可选项：O_APPEND 追加，...
+    
   返回值：
-    - 一个新的文件描述符（若调用失败，返回 -1）
-*/
-
-/*
-#include <unistd.h>
-
-int close(int fd);  //关闭文件，并使得文件描述符可以被再次使用
-  参数：
-    - fd：要关闭的文件描述符
-*/
-
-/*
-errno：属于 linux 系统函数库，是一个全局变量，记录最近的错误号。可以调用 perror 函数获取错误号对应的错误描述。
-
-#include <stdio.h>
-
-void perror(const char *s);     // 打印 errno 对应的错误描述，没有返回值。
-  参数：
-    - 用户描述（最后打印为 s:错误描述）
+    - 调用成功，返回一个新的文件描述符；调用失败，返回 -1
+  
+  作用：
+    - 打开文件，返回文件描述符
 */
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <stdio.h>
-#include <unistd.h>
+#include <stdio.h> 	// c 标准输入输出头文件
+#include <unistd.h> 	// unix 标准库头文件，包含一些常用的系统调用函数和符号常量，如 write、read、fork、exec 等，以及对文件描述符、进程控制和文件操作的定义。
 
 int main()
 {
@@ -731,25 +757,12 @@ int open(const char *pathname, int flags, mode_t mode);
       - 必选项（互斥，必须选一个）：O_RDONLY 只读, O_WRONLY 只写, or O_RDWR 读写；
       - 可选项：O_APPEND 追加，O_CREAT 文件不存在则创建
     - mode：八进制数，表示用户对创建的新文件的操作权限，最终的权限为 mode & ~umask。e.g. 0777（最高权限）
-  返回值：新创建文件的文件描述符
-*/
-
-/*
-#include <unistd.h>
-
-int close(int fd);  //关闭文件，并使得文件描述符可以被再次使用
-  参数：
-    - fd：要关闭的文件描述符
-*/
-
-/*
-errno：属于 linux 系统函数库，是一个全局变量，记录最近的错误号。可以调用 perror 函数获取错误号对应的错误描述。
-
-#include <stdio.h>
-
-void perror(const char *s);     // 打印 errno 对应的错误描述，没有返回值。
-  参数：
-    - 用户描述（最后打印为 s:错误描述）
+    
+  返回值：
+    - 调用成功，返回一个新的文件描述符；调用失败，返回 -1
+  
+  作用：
+    - 创建并打开文件，返回文件描述符
 */
 
 #include <sys/types.h>
@@ -772,33 +785,97 @@ int main()
 }
 ```
 
-### 5. read 和 write
+---
 
-read:
+
+
+## 6. `close`
+
+### a. 查看 `close` 函数
+
+```shell
+man 2 close
+```
+
+
+
+### b. 头文件
+
+```c
+#include <unistd.h>
+```
+
+
+
+### c. `close`
+
+```c
+int close(int fd);  //关闭文件，并使得文件描述符可以被再次使用
+/*
+  参数：
+    - fd：要关闭的文件描述符
+    
+  作用：
+    - 关闭文件，释放文件描述符
+*/
+
+```
+
+---
+
+
+
+## 7. `read` 和 `write`
+
+### a. 查看  `read` 和 `write` 函数
+
+```shell
+man 2 read 	# man 2 write
+```
+
+
+
+### b. 头文件
+
+```c
+#include <unistd.h>
+```
+
+
+
+### c. `read`
 
 ```c
 ssize_t read(int fd, void *buf, size_t count);
 /*  
-参数：
+  参数：
     - fd：文件描述符
     - buf：缓冲区
     - count：指定的 buf 数组的大小
+    
   返回值：
     - 调用成功，返回读取的字节数（字节数为 0, 表示文件读取完毕）；调用失败，返回 -1，并且设置 errno。
+    
+  作用：
+    - 从文件中读取给定数量的字节。
 */
 ```
 
-write:
+### d. `write`
 
 ```c
 ssize_t write(int fd, const void *buf, size_t count);
 /*
-参数：
+  参数：
     - fd：文件描述符
     - buf：缓冲区
     - count：要写入的数据大小
+    
   返回值：
     - 调用成功，返回写入的字节数（字节数为 0, 表示文件读取完毕）；调用失败，返回 -1，并且设置 errno。
+    
+  作用：
+    - 向文件中写入给定数量的字节。
 */
 ```
 
@@ -813,21 +890,28 @@ ssize_t read(int fd, void *buf, size_t count);
     - fd：文件描述符
     - buf：缓冲区
     - count：指定的 buf 数组的大小
+    
   返回值：
     - 调用成功，返回读取的字节数（字节数为 0, 表示文件读取完毕）；调用失败，返回 -1，并且设置 errno。
+    
+  作用：
+    - 从文件中读取给定数量的字节。
 */
 
 /*
 #include <unistd.h>
 
 ssize_t write(int fd, const void *buf, size_t count);
-参数：
+  参数：
     - fd：文件描述符
     - buf：缓冲区
     - count：要写入的数据大小
+    
   返回值：
     - 调用成功，返回写入的字节数（字节数为 0, 表示文件读取完毕）；调用失败，返回 -1，并且设置 errno。
-
+    
+  作用：
+    - 向文件中写入给定数量的字节。
 */
 
 #include <unistd.h>
@@ -872,7 +956,54 @@ int main()
 
 ![image-20231024103828530](./assets/image-20231024103828530.png)
 
-### 6. lseek
+---
+
+
+
+## 8. `lseek`
+
+### a. 查看 `lseek` 函数
+
+```shell
+man 2 lseek
+```
+
+
+
+### b. 头文件
+
+```c
+#include <sys/types.h>
+#include <unistd.h>
+```
+
+
+
+### c. `lseek`
+
+```c
+off_t lseek(int fd, off_t offset, int whence);
+/*
+  参数：
+    fd：文件描述符，通过 open 得到;
+    offset：偏移量
+    whence：标记，设置文件指针偏移量
+      - SEEK_SET：设置偏移量：offset;
+      - SEEK_CUR：设置偏移量：当前位置 + offset;
+      - SEEK_END：设置偏移量：文件大小 + offset;
+
+  返回值：
+    - 调用成功，返回文件指针最终的位置；调用失败，返回-1，并且设置errno。
+
+  作用：
+    - 移动文件指针到文件头：lseek(fd, 0, SEEK_SET);
+    - 获取当前文件指针的位置：lseek(fd, 0, SEEK_CUR);
+    - 获取文件长度：lseek(fd, 0, SEEK_END);
+    - 拓展文件长度：lseek(fd, 100, SEEK_END);   // 最好在末尾写入一些字符才能实现拓展
+*/
+```
+
+**举个例子：**
 
 ```c
 /*
@@ -888,7 +1019,8 @@ off_t lseek(int fd, off_t offset, int whence);
       - SEEK_CUR：设置偏移量：当前位置 + offset;
       - SEEK_END：设置偏移量：文件大小 + offset;
 
-  返回值：返回文件指针最终的位置
+  返回值：
+    - 调用成功，返回文件指针最终的位置；调用失败，返回-1，并且设置errno。
 
   作用：
     - 移动文件指针到文件头：lseek(fd, 0, SEEK_SET);
@@ -900,8 +1032,8 @@ off_t lseek(int fd, off_t offset, int whence);
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <stdio.h>
+#include <fcntl.h> 	// 文件操作函数 open
+#include <stdio.h> 	// perror
 
 int main()
 {
@@ -912,8 +1044,8 @@ int main()
         return -1;
     }
 
-    int res = lseek(fd, 100, SEEK_END);
-    if(res == -1)
+    int ret = lseek(fd, 100, SEEK_END);
+    if(ret == -1)
     {
         perror("lseek");
         return -1;
@@ -921,28 +1053,134 @@ int main()
 
     // 写入数据
     write(fd, " ", 1);
+    
+    // 关闭文件
     close(fd);
     return 0;
 }
 ```
 
+若没有在拓展后的文件末尾写入一些字符，文件并没有被成功拓展：
+
+<img src="./assets/image-20231031134757004.png" alt="image-20231031134757004" style="zoom:85%;" />
+
+调用 `write` 函数在文件末尾写入字符后，可以看到文件长度发生了变化，文件长度变为：**原来长度 + 拓展的长度 + 写入的字符串的长度。**
+
+<img src="./assets/image-20231031134808429.png" alt="image-20231031134808429" style="zoom:85%;" />
+
+---
 
 
-### 7. stat 和 lstat
 
-![image-20231030202038713](C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20231030202038713.png)
+## 7. `stat` 和 `fstat` 和 `lstat`
 
-![image-20231030202530840](C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20231030202530840.png)
+### a. 查看 `stat` 和 `fstat` 和 `lstat`函数
 
-st_mode: 16位数
+```shell
+man 2 stat/fstat/lstat
+```
 
-![image-20231030202730771](C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20231030202730771.png)
 
-![image-20231030203506355](C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20231030203506355.png)
 
-![image-20231030203634614](C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20231030203634614.png)
+### b. 头文件
 
-stat 获取的是软连接指向的文件的信息，lstat可以获取软连接的信息。
+```c
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/stat.h>
+```
+
+
+
+### c. `stat`
+
+```c
+int stat(const char *pathname, struct stat *statbuf);
+/*
+  参数：
+    - pathname：文件路径
+    - statbuf：结构体变量，接收获取的文件相关信息
+
+  返回值：
+    - 调用成功，返回0；调用失败，返回-1，并设置 errno
+
+  作用：
+    - 获取一个文件的相关信息（当文件是一个软连接时，获取的是软链接指向的文件的信息）
+*/
+```
+
+### d. `fstat`
+
+```c
+int fstat(int fd, struct stat *statbuf);
+/*
+  参数：
+    - fd：文件描述符，open 获得
+    - statbuf：结构体变量，接收获取的文件相关信息
+
+  返回值：
+    - 调用成功，返回0；调用失败，返回-1，并设置 errno
+  
+  作用：
+    - 获取一个文件的相关信息（除参数外，作用于 stat 相同）
+*/
+```
+
+### e. `lstat`
+
+```c
+int lstat(const char *pathname, struct stat *statbuf);
+/*
+  参数：
+    - pathname：文件路径
+    - statbuf：结构体变量，接收获取的文件相关信息
+
+  返回值：
+    - 调用成功，返回0；调用失败，返回-1，并设置 errno
+  
+  作用：
+    - 获取一个文件的相关信息（当文件是一个软连接时，获取的是软链接本身的信息）
+*/
+```
+
+### f. `struct stat`：
+
+```c
+// 就是命令 stat filename 输出的信息
+struct stat {
+               dev_t     st_dev;         /* 文件的设备编号 */
+               ino_t     st_ino;         /* 节点号 */
+               mode_t    st_mode;        /* 文件的类型和存取的权限 */
+               nlink_t   st_nlink;       /* 链接到该文件的硬链接的数据 */
+               uid_t     st_uid;         /* 用户ID */
+               gid_t     st_gid;         /* 组ID */
+               dev_t     st_rdev;        /* 设备文件的设备编号 */
+               off_t     st_size;        /* 文件大小（字节数） */
+               blksize_t st_blksize;     /* I/O文件系统的块大小 */
+               blkcnt_t  st_blocks;      /* 分配的块的数量（512B） */
+
+               /* Since Linux 2.6, the kernel supports nanosecond
+                  precision for the following timestamp fields.
+                  For the details before Linux 2.6, see NOTES. */
+
+               struct timespec st_atim;  /* 最后一次访问时间 */
+               struct timespec st_mtim;  /* 最后一次修改时间 */
+               struct timespec st_ctim;  /* 最后一次改变属性时间 */
+
+           #define st_atime st_atim.tv_sec      /* Backward compatibility */
+           #define st_mtime st_mtim.tv_sec
+           #define st_ctime st_ctim.tv_sec
+           };
+
+```
+
+### g. `st_mode`：
+
+`st_mode` 是一个 $16$ 位的二进制串，用来表示文件类型（7种，前四位和 `S_IFMT` 掩码位与获取）和文件权限（12位）。
+
+<img src="./assets/image-20231031140703954.png" alt="image-20231031140703954" style="zoom: 70%;" />
+
+### h. 举个例子
 
 ```c
 /*
@@ -955,8 +1193,11 @@ int stat(const char *pathname, struct stat *statbuf);
     - pathname：文件路径
     - statbuf：结构体变量，接收获取的文件相关信息
 
-  返回值：调用成功，返回0；调用失败，返回-1，并设置 errno
-  作用：获取一个文件的相关信息
+  返回值：
+    - 调用成功，返回0；调用失败，返回-1，并设置 errno
+    
+  作用：
+    - 获取一个文件的相关信息
 
   int lstat(const char *pathname, struct stat *statbuf);
 */
@@ -983,7 +1224,124 @@ int main()
 }
 ```
 
-## 8. 模拟实现 ls -l 命令
+运行结果如下：
+
+![image-20231031141240075](./assets/image-20231031141240075.png)
+
+---
+
+
+
+## 8. 模拟实现 `ls -l` 命令
+
+```c
+/*
+模拟实现 ls -l 指令
+
+-rwxrwxr-x 1 ubuntu ubuntu    113 十月   31 13:47 a.txt
+*/
+
+#include <sys/types.h>
+#include <sys/stat.h>   //
+#include <stdio.h>  //
+#include <unistd.h>     //
+#include <pwd.h>    // getpwuid
+#include <grp.h>    // getgrgid
+#include <time.h>
+#include <string.h>
+
+int main(int argc, char * argv[])
+{
+    // 参数输入是否正确
+    if(argc < 2)
+    {
+        printf("usage: %s <filename>\n", argv[0]);
+        return -1;
+    }
+
+    // 调用 stat 函数获取文件信息
+    struct stat st;
+    int ret = stat(argv[1], &st);
+    if(ret == -1)
+    {
+        perror("stat");
+        return -1;
+    }
+
+    // 获取文件类型 (1位) 和文件权限 （9位）
+    char perms[11] = {0};   // 最后一位表示字符串结束
+    
+    switch(st.st_mode & __S_IFMT)
+    {
+        case __S_IFLNK:     // 符号链接（软链接）
+            perms[0] = 'l';
+            break;
+        case __S_IFDIR:     // 目录
+            perms[0] = 'd';
+            break;
+        case __S_IFREG:     // 普通文件
+            perms[0] = '-';
+            break;
+        case __S_IFBLK:     // 块设备
+            perms[0] = 'b';
+            break;
+        case __S_IFCHR:     // 字符设备
+            perms[0] = 'c';
+            break;
+        case __S_IFSOCK:    // 套接字
+            perms[0] = 's';
+            break;
+        case __S_IFIFO:     // 管道
+            perms[0] = 'p';
+            break;
+        default:
+            perms[0] = '?';
+            break;
+    }
+    // 判断文件的访问权限
+
+    // 文件所有者
+    perms[1] = (st.st_mode & S_IRUSR) ? 'r' : '-';
+    perms[2] = (st.st_mode & S_IWUSR) ? 'w' : '-';
+    perms[3] = (st.st_mode & S_IXUSR) ? 'x' : '-';
+
+    // 文件所在组
+    perms[4] = (st.st_mode & S_IRGRP) ? 'r' : '-';
+    perms[5] = (st.st_mode & S_IWGRP) ? 'w' : '-';
+    perms[6] = (st.st_mode & S_IXGRP) ? 'x' : '-';
+    
+    // 其他人
+    perms[7] = (st.st_mode & S_IROTH) ? 'r' : '-';
+    perms[8] = (st.st_mode & S_IWOTH) ? 'w' : '-';
+    perms[9] = (st.st_mode & S_IXOTH) ? 'x' : '-';
+    
+    // 硬链接数
+    int linkNum = st.st_nlink;
+
+    // 文件所有者
+    char * fileUser = getpwuid(st.st_uid)->pw_name;
+
+    // 文件所在组
+    char * fileGrp = getgrgid(st.st_gid)->gr_name;
+
+    // 文件大小
+    long int fileSize = st.st_size;
+
+    // 获取修改的时间
+    char * time = ctime(&st.st_mtime);  // 带有换行符
+    char mtime[512] = {0};
+    strncpy(mtime, time, strlen(time) - 1);     // 去掉换行符
+
+    char * buf[1024];
+    sprintf(buf, "%s %d %s %s %ld %s %s", perms, linkNum, fileUser, fileGrp, fileSize, mtime, argv[1]);
+
+    printf("%s\n", buf);
+
+    return 0;
+}
+```
+
+
 
 ## 9. 文件属性操作函数
 
