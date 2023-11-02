@@ -314,6 +314,8 @@ app 可执行程序可以正常执行了。
 
 <img src="./assets/image-20231018202901850.png" alt="image-20231018202901850" style="zoom:80%;" />
 
+<hr style="border:3px #6CA6CD double;">
+
 # Makefile
 
 - Makefile 文件定义了一系列的规则来指定哪些文件需要先编译，哪些文件需要后编译，哪些文件需要重新编译，甚至于进行更复杂的功能操作，因为 Makefile 文件就 像一个 Shell 脚本一样，也可以执行操作系统的命令。
@@ -470,6 +472,8 @@ $(patsubst <pattern>,<replacement>,<text>)
 
 ![image-20231019094353584](./assets/image-20231019094353584.png)
 
+<hr style="border:3px #6CA6CD double;">
+
 # GDB
 
 - GDB 是由 GNU 软件系统社区提供的调试工具，同 GCC 配套组成了一套完整的开发环 境，GDB 是 Linux 和许多类 Unix 系统中的标准开发环境。
@@ -585,6 +589,10 @@ ptype 变量名（打印变量类型）
 set var 变量名=变量值 （循环中用的较多）
 until （跳出循环）
 ```
+
+
+
+<hr style="border:3px #6CA6CD double;">
 
 # 文件 IO
 
@@ -1817,3 +1825,509 @@ int main() {
 
 ---
 
+## 13. 目录遍历函数
+
+linux 系统中 “一切皆为文件”。所以，目录也是一个文件，其中存储这目录的信息和目录内子文件的信息，调用 `readdir` 函数可以逐条地读取目录中子文件的信息。
+
+### a. `opendir`
+
+头文件：
+
+```c
+#include <sys/types.h>
+#include <dirent.h>
+```
+
+
+
+```c
+DIR *opendir(const char *name);
+/*
+  参数：
+   -  name：需要打开的目录名称
+
+  返回值：
+    - 调用成功，返回一个 DIR *（指针）指向一个目录流；调用失败，返回 NULL；
+
+  作用：
+    - 打开一个目录
+*/
+```
+
+### b. `readdir`
+
+头文件：
+
+```c
+#include <dirent.h>
+```
+
+
+
+```c
+struct dirent *readdir(DIR *dirp);
+/*
+  参数：
+    - dirp：存储 opendir 返回的结果
+
+  返回值：
+    - 调用成功，返回 struct dirent，其中存储了读取到的文件的信息（目录下的子文件，每次读取一项）；读取到末尾或者调用失败，返回 NULL
+
+  作用：
+    - 读取目录中的数据
+*/
+```
+
+
+
+### c. `closedir`
+
+头文件：
+
+```c
+#include <sys/types.h>
+#include <dirent.h>
+```
+
+
+
+```c
+int closedir(DIR *dirp);
+/*
+  参数：
+    - dirp：要操作的目录的相关信息，由 opendir 获取
+
+  返回值：
+    - 调用成功，返回 0；调用失败，返回 -1
+
+  作用：
+    - 关闭与 dirp 关联的目录
+*/
+```
+
+### d. `struct dirent`
+
+```c
+struct dirent
+{
+    ino_t d_ino; // 此目录进入点的inode
+    off_t d_off; // 目录文件开头至此目录进入点的位移
+    unsigned short int d_reclen; // d_name 的长度, 不包含NULL字符
+    unsigned char d_type; // d_name 所指的文件类型
+    char d_name[256]; // 文件名
+};
+```
+
+### e. `d_type`
+
+```c
+d_type
+DT_BLK - 块设备
+DT_CHR - 字符设备
+DT_DIR - 目录
+DT_LNK - 软连接
+DT_FIFO - 管道
+DT_REG - 普通文件
+DT_SOCK - 套接字
+DT_UNKNOWN - 未知
+```
+
+
+
+### f. 举个例子
+
+```c
+/*
+#include <sys/types.h>
+#include <dirent.h>
+
+// 打开一个目录
+DIR *opendir(const char *name);
+  参数：
+   -  name：需要打开的目录名称
+
+  返回值：
+    - 调用成功，返回一个 DIR *（指针）指向一个目录流；调用失败，返回 NULL；
+
+  作用：
+    - 打开一个目录
+
+
+#include <dirent.h>
+
+struct dirent *readdir(DIR *dirp);
+  参数：
+    - dirp：存储 opendir 返回的结果
+
+  返回值：
+    - 调用成功，返回 struct dirent，其中存储了读取到的文件的信息（目录下的子文件，每次读取一项）；读取到末尾或者调用失败，返回 NULL
+
+  作用：
+    - 读取目录中的数据
+
+
+#include <sys/types.h>
+#include <dirent.h>
+
+int closedir(DIR *dirp);
+  参数：
+    - dirp：要操作的目录的相关信息，由 opendir 获取
+
+  返回值：
+    - 调用成功，返回 0；调用失败，返回 -1
+
+  作用：
+    - 关闭与 dirp 关联的目录
+*/
+
+#include <sys/types.h>
+#include <dirent.h>
+#include <stdio.h>
+#include <string.h>     // 
+// #include <unistd.h>
+#include <stdlib.h>
+
+int getFileNum(const char * path);
+
+int main(int argc, char * argv[])
+{
+    if(argc < 2)
+    {
+        printf("Usage: %s <path>\n", argv[0]);
+        return -1;
+    }
+
+    int num = getFileNum(argv[1]);
+
+    printf("Total number of filse is: %d\n", num);
+    
+    return 0;
+}
+
+int getFileNum(const char * path)
+{
+    // 打开目录
+    DIR * dir = opendir(path);
+    if(dir == NULL)
+    {
+        perror("opendir");
+        // return -1;
+        exit(0); 	// 强制退出程序，直接返回操作系统
+    }
+
+    // 读取目录
+    struct dirent *ptr;
+    int tot = 0;
+    while((ptr = readdir(dir)) != NULL)     // readdir 每次读取目录流中一条信息
+    {
+        char * dname = ptr->d_name;
+        // printf("%s\n", dname);
+        if(strcmp(dname, ".") == 0 || strcmp(dname, "..") == 0) continue;
+        
+        if(ptr->d_type == DT_DIR)   // 子目录
+        {   
+            char subPath[256] = {0};
+            sprintf(subPath, "%s/%s", path, dname);
+            tot += getFileNum(subPath);
+        }
+        else if(ptr->d_type == DT_REG)  // 普通文件
+        {
+            tot++;
+        }
+    }  
+    // 关闭目录
+    closedir(dir);
+
+    return tot;
+}
+```
+
+---
+
+
+
+## 14. dup 和 dup2
+
+### a. dup
+
+```c
+#include <unistd.h>
+```
+
+```c
+int dup(int oldfd);
+/*
+  参数：
+    - oldfd：要复制的文件描述符
+  
+  返回值：
+    - 一个新的文件描述符（从空闲的文件描述符表中寻找一个最小的）
+
+  作用：
+    - 复制一个新的文件描述符。假设 oldfd 指向文件 a.txt，那么 fd2 = dup(oldfd) 也指向文件 a.txt
+*/
+```
+
+### b. dup2
+
+```c
+#include <unistd.h>
+```
+
+```c
+int dup2(int oldfd, int newfd);
+/*
+  参数：
+    - oldfd：要指向的文件描述符
+    - newfd：要重定向的文件描述符
+  
+  返回值：
+    - 调用成功，返回 newfd；调用失败，返回 -1
+
+  作用：
+    - 重定向文件描述符。假设 oldfd 指向文件 a.txt，newfd 指向 b.txt，那么，调用 dup2(oldfd, newfd) 后，newfd 不再指向 b.txt，而是指向 a.txt
+*/
+```
+
+### c. 举个例子
+
+```c
+/*
+#include <unistd.h>
+
+int dup(int oldfd);
+  参数：
+    - oldfd：要复制的文件描述符
+  
+  返回值：
+    - 一个新的文件描述符（从空闲的文件描述符表中寻找一个最小的）
+
+  作用：
+    - 复制一个新的文件描述符。假设 oldfd 指向文件 a.txt，那么 fd2 = dup(oldfd) 也指向文件 a.txt
+
+int dup2(int oldfd, int newfd);
+  参数：
+    - oldfd：要指向的文件描述符
+    - newfd：要重定向的文件描述符
+  
+  返回值：
+    - 调用成功，返回 newfd；调用失败，返回 -1
+
+  作用：
+    - 重定向文件描述符。假设 oldfd 指向文件 a.txt，newfd 指向 b.txt，那么，调用 dup2(oldfd, newfd) 后，newfd 不再指向 b.txt，而是指向 a.txt
+*/
+
+#include <unistd.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
+
+int main() {
+
+    int fd = open("1.txt", O_RDWR | O_CREAT, 0664);
+    if(fd == -1) {
+        perror("open");
+        return -1;
+    }
+
+    int fd1 = open("2.txt", O_RDWR | O_CREAT, 0664);
+    if(fd1 == -1) {
+        perror("open");
+        return -1;
+    }
+
+    printf("fd : %d, fd1 : %d\n", fd, fd1);
+
+    int fd2 = dup2(fd, fd1);
+    if(fd2 == -1) {
+        perror("dup2");
+        return -1;
+    }
+
+    // 通过fd1去写数据，实际操作的是1.txt，而不是2.txt
+    char * str = "hello, dup2";
+    int len = write(fd1, str, strlen(str));
+
+    if(len == -1) {
+        perror("write");
+        return -1;
+    }
+
+    printf("fd : %d, fd1 : %d, fd2 : %d\n", fd, fd1, fd2);
+
+    close(fd);
+    close(fd1);
+
+    return 0;
+}
+```
+
+---
+
+## 15. fcntl
+
+头文件：
+
+```c
+#include <unistd.h>
+#include <fcntl.h>
+```
+
+
+
+```c
+int fcntl(int fd, int cmd, ... );
+/*
+  参数：
+    - fd：需要操作的文件描述符
+    - cmd：表示对文件描述符的操作
+      - F_DUPFD：复制文件描述符，返回一个新的文件描述符，和 fd 指向同一个文件。
+        - e.g. int fd2 = fcntl(fd, F_DUPFD);
+      - F_GETFL：获取（返回） fd 指向的文件的状态 flag，如O_RDONLY/O_APPEND 等；
+      - F_SETFL：设置 fd 指向的文件的状态 flag（重置而非增加）
+        - 必选项：O_RDONLY, O_WRONLY, O_RDWR 不可以被修改
+        - 可选性：O_APPEND（追加数据）, O_NONBLOCK
+                O_APPEND（设置成非阻塞）
+
+  作用：
+    - 基于文件描述符对文件进行操作
+*/
+```
+
+举个例子：
+
+```c
+/*
+#include <unistd.h>
+#include <fcntl.h>
+
+int fcntl(int fd, int cmd, ... );
+  参数：
+    - fd：需要操作的文件描述符
+    - cmd：表示对文件描述符的操作
+      - F_DUPFD：复制文件描述符，返回一个新的文件描述符，和 fd 指向同一个文件。int fd2 = fcntl(fd, F_DUPFD);
+      - F_GETFL：获取（返回） fd 指向的文件的状态 flag，如O_RDONLY/O_APPEND 等；
+      - F_SETFL：设置 fd 指向的文件的状态 flag（重置而非增加）
+        - 必选项：O_RDONLY, O_WRONLY, O_RDWR 不可以被修改
+        - 可选性：O_APPEND（追加数据）, O_NONBLOCK
+                O_APPEND（设置成非阻塞）
+
+  作用：
+    - 基于文件描述符对文件进行操作
+*/
+
+#include <unistd.h>
+#include <fcntl.h>
+
+int main()
+{
+    int fd = open("1.txt", O_RDWR);
+    if(fd == -1) {
+        perror("open");
+        return -1;
+    }
+
+    // 获取文件描述符状态flag
+    int flag = fcntl(fd, F_GETFL);
+    if(flag == -1) {
+        perror("fcntl");
+        return -1;
+    }
+
+    // 重置状态
+    flag |= O_APPEND;
+
+    // 修改文件描述符状态的flag，给flag加入O_APPEND这个标记
+    int ret = fcntl(fd, F_SETFL, flag);
+    if(ret == -1) {
+        perror("fcntl");
+        return -1;
+    }
+
+    char * str = "nihao";
+    write(fd, str, strlen(str));
+
+    close(fd);
+
+    return 0;
+}
+```
+
+<hr style="border:3px #6CA6CD double;">
+
+# 进程
+
+## 进程概述
+
+- 进程是正在运行的程序的实例，是一个具有一定独立功能的程序关于某个数据集合的一次运行活动。它是操作系统动态执行的基本单元。在传统的操作系统中，进程既是基本的分配单元，也是基本的执行单元。
+- 从内核的角度看，进程由用户内存空间和一系列内核数据结构组成，其中用户内存空间包含了程序代码以及代码所使用的的变量，而内核数据结构则用于维护进程状态信息。
+- 单道程序设计和多道程序设计：
+  - 单道程序设计：计算机内存中只允许一个程序运行。
+  - 多道程序设计：计算机内存中同时包含多道相互独立的程序，在管理程序的控制下相互穿插运行。这些程序共享计算机系统资源，同处于开始到结束之间的状态。引入多道程序设计技术的根本目的是提高 CPU 的利用率。
+  - 无论是单道程序设计还是多道程序设计，就微观而言，单个 CPU 上运行的进程只有一个。
+- 时间片：操作系统分配给每个正在运行的进程微观上的一段 CPU 时间。时间片由操作系统内核的调度程序分配给每个进程。首先，内核会给每个进程分配相等 的初始时间片，然后每个进程轮番地执行相应的时间，当所有进程都处于时间片耗尽的 状态时，内核会重新为每个进程计算并分配时间片，如此往复。
+- 并发和并行：
+  - 并发：在同一时刻只有一条指令执行。宏观上具有多个进程同时执行的效果，但在微观上并不是同时执行的， 只是把时间分成若干段，使多个进程快速交替的执行。
+  - 并行：在同一时刻，有多条指令在**多个处理器**上同时执行。
+- 为了管理进程，内核为每个进程分配一个 PCB (Processing Control Block) 进程控制块。Linux 内核的进程控制块是 task_struct 结构体。（/usr/src/linux-headers-xxx/include/linux/sched.h）
+
+
+
+## 进程状态
+
+进程状态反映进程执行过程的变化。这些状态随着进程的执行和外界条件的变化而转换。 在三态模型中，进程状态分为三个基本状态，即就绪态，运行态，阻塞态。在五态模型 中，进程分为新建态、就绪态，运行态，阻塞态，终止态。
+
+<img src="./assets/image-20231102181911419.png" alt="image-20231102181911419" style="zoom: 75%;" />
+
+- 运行态：进程占有处理器正在运行。
+- 就绪态：进程具备运行条件，等待系统分配处理器以便运 行。当进程已分配到除CPU以外的所有必要资源后，只要再 获得CPU，便可立即执行。在一个系统中处于就绪状态的进 程可能有多个，通常将它们排成一个队列，称为就绪队列。
+- 阻塞态：又称为等待(wait)态或睡眠(sleep)态，指进程 不具备运行条件，正在等待某个事件的完成。
+
+<img src="./assets/image-20231102181928295.png" alt="image-20231102181928295" style="zoom:67%;" />
+
+- 新建态：进程刚被创建时的状态，尚未进入就绪队列。
+- 终止态：进程完成任务到达正常结束点，或出现无法克服的错误而异常终止，或被操作系统及 有终止权的进程所终止时所处的状态。进入终止态的进程以后不再执行，但依然保留在操作系 统中等待善后。一旦其他进程完成了对终止态进程的信息抽取之后，操作系统将删除该进程。
+
+## 进程号
+
+- 每个进程都由进程号来标识，其类型为 pid_t（整型），进程号的范围：0～32767。 进程号总是唯一的，但可以重用。当一个进程终止后，其进程号就可以再次使用。
+- 任何进程（除 init 进程）都是由另一个进程创建，该进程称为被创建进程的父进程， 对应的进程号称为父进程号（PPID）。
+- 进程组是一个或多个进程的集合。他们之间相互关联，进程组可以接收同一终端的各 种信号，关联的进程有一个进程组号（PGID）。默认情况下，当前的进程号会当做当 前的进程组号。
+
+## 进程相关命令
+
+### 1. ps aux / ajx
+
+- a：显示终端上的所有进程，包括其他用户的进程 
+- u：显示进程的详细信息 
+- x：显示没有控制终端的进程 
+- j：列出与作业控制相关的信息
+
+<img src="./assets/image-20231102182223895.png" alt="image-20231102182223895" style="zoom:67%;" />
+
+### 2. top
+
+可以在使用 top 命令时加上 -d 来指定显示信息更新的时间间隔，在 top 命令 执行后，可以按以下按键对显示的结果进行排序： 
+
+- M - 根据内存使用量排序 
+- P - 根据 CPU 占有率排序 
+- T - 根据进程运行时间长短排序 
+- U - 根据用户名来筛选进程 
+- K - 输入指定的 PID 杀死进程
+
+### 3. kill
+
+- kill [-signal] pid 
+- kill –l 列出所有信号 
+- kill –SIGKILL 进程ID 
+- kill -9 进程ID
+
+ulimit -a
+
+
+
+### tty 
+
+查看当前终端ID
