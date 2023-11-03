@@ -590,7 +590,14 @@ set var 变量名=变量值 （循环中用的较多）
 until （跳出循环）
 ```
 
+## GDB 多进程调试
 
+- GDB 默认跟踪父进程，子进程代码直接执行。
+- 设置调试父进程或子进程： `set follow-fork-mode [child | parent]`
+- 设置调试模式：`set detach-on-fork [on | off]` 。默认为 on，表示调试当前进程的时候，其它的进程继续运行，如果为 off，调试当前进程的时候，其它进程被 GDB 挂起。
+- 查看调试的进程：`info inferiors`（当前调试进程含有 *）
+- 切换当前调试的进程：`inferior id`
+- 使进程脱离 GDB 调试：`detach inferiors id`
 
 <hr style="border:3px #6CA6CD double;">
 
@@ -2331,3 +2338,130 @@ ulimit -a
 ### tty 
 
 查看当前终端ID
+
+
+
+## 进程创建
+
+### 1. 父子进程虚拟地址空间
+
+- 创建的子进程，会**在分离的存储空间中创建一个父进程的副本（包括用户区和内核区）。即，深拷贝**。内核区中的 pid 为各自的进程号。`fork` 函数的返回值保存在栈空间中。
+- 如果在创建子进程之前，父进程中有一个变量 `num`，那么创建的子进程中也会有这样一个变量 `num`，但是两个 `num` 毫无关系，父进程中对 `num` 的操作不会影响子进程中的 `num`。
+
+<img src="./assets/image-20231103133637108.png" alt="image-20231103133637108" style="zoom:100%;" />
+
+### 2. fork
+
+- **在一个进程（程序）中，可以用 `fork()` 创建一个子进程，==当该子进程创建时，它从 `fork()` 指令的下一条（或者说从 `fork()` 的返回处）开始执行与父进程相同的代码。==**
+
+- 准确的说，fork 是通过写时拷贝（copy-on-write，推迟或者避免拷贝数据的技术）实现的。内核在刚创建子进程时不会拷贝整个父进程的地址空间，而是父子进程共享同一个地址空间。只有当父/子进程出现了写入操作时，内核才会真正地进行拷贝，将父子进程的地址空间分离。
+
+- ==父进程在 `fork` 之前打开的文件，会同样拷贝给子进程。创建子进程后，文件引用量 +1。因此说，fork 产生的子进程与父进程可以共享文件，即，共享一个文件表。在父/子进程中打开的文件，在子/父进程中也是打开的。==
+
+  <img src="./assets/image-20231103135246572.png" alt="image-20231103135246572" style="zoom:80%;" />
+
+- 父进程和子进程会交替进行，但这并不意味着一定是轮流进行，也可能是子进程执行好几个时间片后再切换为父进程。
+
+头文件：
+
+```c
+#include <sys/types.h>
+#include <unistd.h>
+```
+
+
+
+```c
+pid_t fork(void);
+/*
+  参数：
+    - None
+
+  返回值：
+    - 返回两次（分别在父子进程中各返回一次）。在父进程中返回子进程的进程号，在子进程中返回 0。可以通过返回值区分父子进程。
+    - 若创建子进程失败，会在父进程中返回 -1，并设置 errno。
+      - errno 设为 EAGAIN：当前系统的进程数已经达到系统规定的上限；
+      - errno 设为 ENOMEN：系统内存不足
+
+  作用：
+    - 创建子进程
+*/
+```
+
+
+
+举个例子：
+
+```c
+/*
+#include <sys/types.h>
+#include <unistd.h>
+
+pid_t fork(void);
+  参数：
+    - None
+
+  返回值：
+    - 返回两次（分别在父子进程中各返回一次）。在父进程中返回子进程的进程号，在子进程中返回 0。可以通过返回值区分父子进程。
+    - 若创建子进程失败，会在父进程中返回 -1，并设置 errno。
+      - errno 设为 EAGAIN：当前系统的进程数已经达到系统规定的上限；
+      - errno 设为 ENOMEN：系统内存不足
+
+  作用：
+    - 创建子进程
+*/
+
+#include <sys/types.h>
+#include <unistd.h>
+#include <stdio.h>
+
+int main()
+{
+    // create a new pid
+    pid_t pid = fork();
+    pid_t child, parent;
+
+    if(pid > 0)
+    {
+        // parent
+        printf("pid: %d\n", getpid());
+        parent = getpid();
+        printf("parent pid: %d, ppid: %d\n", getpid(), getppid());
+    }
+    else if (pid == 0)
+    {
+        //child
+        child = getpid();
+        printf("child pid: %d, ppid: %d\n", getpid(), getppid());
+    }
+    for(int i = 0; i < 5; i++)
+    {
+        if(getpid() == parent)
+        {
+            printf("parent i: %d, pid: %d\n", i, getpid());
+        }
+        else if(getpid() == child)
+        {
+            printf("child i: %d, pid: %d\n", i, getpid());
+        }
+        sleep(1);
+    }
+
+    return 0;
+}
+```
+
+运行结果：
+
+<img src="./assets/image-20231103112248434.png" alt="image-20231103112248434" style="zoom:80%;" />
+
+调用 `ps aux` 命令查看进程 10067，发现这是一个终端（终端是一个阻塞的进程，等待用户交互）：
+
+![image-20231103112357328](./assets/image-20231103112357328.png)
+
+调用 `tty` 命令查看当前终端 ID，相同：
+
+<img src="./assets/image-20231103112424559.png" alt="image-20231103112424559" style="zoom:80%;" />
+
+---
+
