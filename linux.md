@@ -615,7 +615,23 @@ until （跳出循环）
 
 
 
-## 2. 虚拟地址空间
+## 2. c 程序的虚拟存储地址空间布局
+
+C 程序的组成：
+
+- **正文段**。CPU 执行的机器指令部分。通常是可共享且只读的。
+- **初始化数据段**，又称数据段。包含程序中需明确赋初值的变量，如，**全局变量**。
+- **未初始化数据段**，称 bss 段。包含 **函数外的未初始化的变量**，如，`long sum[1000];`。在程序开始执行之前，内核将此段中的数据初始化为 0 或空指针。
+- **栈**。包含自动变量（非静态或外部变量）以及每次函数调用时需要保存的信息（返回地址、调用者的环境信息）。最近被调用的函数会在栈上为其自动变量和临时变量分配存储空间。
+- **堆**。动态存储分配在堆中进行。
+
+<img src="./assets/image-20231105143509973.png" alt="image-20231105143509973" style="zoom:90%;" />
+
+- 只有正文段和初始化数据段需要从磁盘程序文件中读入。未初始化的数据段不需要保存在磁盘程序文件中，因为他们会被内核初始化为 0 或空指针。
+
+
+
+*若定义一个局部变量为自动变量,这意味着每次执行到定义该变量都回产生一个新变量,并对他重新初始化*
 
 **以 32 位计算机为例：**
 
@@ -2352,15 +2368,23 @@ ulimit -a
 
 ### 2. fork
 
-- **在一个进程（程序）中，可以用 `fork()` 创建一个子进程，==当该子进程创建时，它从 `fork()` 指令的下一条（或者说从 `fork()` 的返回处）开始执行与父进程相同的代码。==**
+- 一个现有的进程可以调用 `fork` 函数创建一个新进程，称为子进程。`fork` 函数被调用一次，但**返回两次**，一次返回给子进程，返回值为0，一次返回给父进程，返回值为子进程的进程号。（因为父子进程是一对多的关系，所以子进程返回 0 即可，而父进程需要返回子进程的进程号）。
+- 当该子进程创建时，它和父进程都会 **从 `fork` 调用的下一条（或者说从 `fork` 的返回处）**开始执行继续执行与父进程相同的代码。
+- 子进程是父进程的副本，准确的说，子进程获取父进程 **数据空间、堆和栈的副本**。**父进程和子进程不共享这些存储空间，但是父子进程共享正文段**。
 
-- 准确的说，fork 是通过写时拷贝（copy-on-write，推迟或者避免拷贝数据的技术）实现的。内核在刚创建子进程时不会拷贝整个父进程的地址空间，而是父子进程共享同一个地址空间。只有当父/子进程出现了写入操作时，内核才会真正地进行拷贝，将父子进程的地址空间分离。
+- 准确的说，`fork` 是通过写时拷贝（copy-on-write，推迟或者避免拷贝数据的技术）实现的。内核在刚创建子进程时不会拷贝整个父进程的地址空间，而是父子进程共享同一个地址空间。只有当父/子进程出现了写入操作时，内核才会真正地进行拷贝，将父子进程的地址空间分离。**因为 `fork` 之后经常跟随 `exec`，所以现在很多实现都不执行父进程数据段、栈、堆的完全副本**。
 
-- ==父进程在 `fork` 之前打开的文件，会同样拷贝给子进程。创建子进程后，文件引用量 +1。因此说，fork 产生的子进程与父进程可以共享文件，即，共享一个文件表。在父/子进程中打开的文件，在子/父进程中也是打开的。==
+- 父进程在 `fork` 之前打开的文件描述符，都会被拷贝给子进程。父进程和子进程共享同一个文件偏移量，也就是说，当父子进程向同一个文件（`fork` 之前打开的）写时，父子进程会相互影响。因此，在 fork 之后通常这样处理文件描述符：
 
-  <img src="./assets/image-20231103135246572.png" alt="image-20231103135246572" style="zoom:80%;" />
+  - 父进程等待子进程完成；
+  - 父进程和子进程各自关闭他们不需要使用的文件描述符，避免干扰对方。
+
+  <img src="./assets/image-20231105145200619.png" alt="image-20231105145200619" style="zoom:80%;" />
 
 - 父进程和子进程会交替进行，但这并不意味着一定是轮流进行，也可能是子进程执行好几个时间片后再切换为父进程。
+- `fork` 之后，父子进程谁先执行也是不确定的，这取决于内核使用的调度算法。
+
+
 
 头文件：
 
@@ -2385,6 +2409,8 @@ pid_t fork(void);
 
   作用：
     - 创建子进程
+      - 父进程希望复制自己，使父子进程同时执行不同的代码段。如网络服务进程中父进程等待客户端的服务请求：当请求到达时，父进程调用 fork 使进紫禁城处理此请求，父进程则继续等待下一个服务请求；
+      - 一个进程要执行一个不同的程序。如，子进程从 fork 返回后立即调用 exec。（spawn）
 */
 ```
 
@@ -2464,4 +2490,241 @@ int main()
 <img src="./assets/image-20231103112424559.png" alt="image-20231103112424559" style="zoom:80%;" />
 
 ---
+
+## 3. exec 函数族
+
+- 当进程调用一种 `exec` 函数时，该进程执行的程序完全替换为新程序，而 **新程序则从其 `main` 函数开始执行**。**`exec` 函数用磁盘上的一个新程序替换了当前进程的正文段、数据段、堆段和栈段。**
+
+  <figure class="half">
+      <img src="./assets/image-20231105162349837.png" alt="image-20231105162349837" style="zoom:70%;" />
+      <img src="./assets/image-20231105162657868.png" alt="image-20231105162657868" style="zoom:80%;" />
+  </figure>
+
+- 当内核执行 exec 调用时，在调用 main 前会先调用一个特殊的启动例程，可执行程序文件将此启动例程指定为程序的起始地址。启动例程从内核去的命令行参数和环境变量值，为调用 main 函数做好安排。
+
+
+
+
+
+
+
+### a. execl
+
+```c
+int execl(const char *pathname, const char *arg, ... /* (char  *) NULL */);
+/*
+  参数：
+    - pathname：要执行的程序路径（相对路径或绝对路径）
+    - arg：执行程序需要的参数（第一个为可执行文件的名称，中间为可执行文件需要的参数，最后需要以 NULL 结尾）
+
+  返回值：
+    - 调用失败，返回-1，并设置errno；调用成功，没有返回值（因为程序段已经被替换，不会再回到原 main）
+*/
+```
+
+
+
+```c
+#include <unistd.h>
+#include <sys/types.h>
+#include <stdio.h>
+
+int main()
+{
+    // create a new process
+    pid_t pid = fork();
+    pid_t child, parent;
+    if(pid > 0)
+    {
+        // parent process
+        printf("pid: %d\n", getpid());
+        parent = getpid();
+        printf("parent pid: %d, ppid: %d\n", getpid(), getppid());
+    }
+    else if(pid == 0)
+    {
+        // child process
+        execl("hello", "hello", NULL); 	// 执行 hello 可执行文件（输出 “hello world”）
+        // execl("/bin/ps", "ps", "aux", NULL); 	// 执行系统调用
+        child = getpid();
+        printf("child pid: %d, ppid: %d\n", getpid(), getppid());
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        if(getpid() == parent)
+        {
+            printf("parent i: %d, pid: %d\n", i, getpid());
+        }
+        else if(getpid() == child)
+        {
+            printf("child i: %d, pid: %d\n", i, getpid());
+        }
+        sleep(1);
+    }
+    return 0;
+}
+```
+
+运行结果：
+
+子进程仅执行 hello。
+
+![image-20231105165733051](./assets/image-20231105165733051.png)
+
+子进程仅执行 `ps aux` 命令
+
+![image-20231105165818494](./assets/image-20231105165818494.png)
+
+### b. execlp
+
+```c
+int execlp(const char *file, const char *arg, ... /* (char  *) NULL */);
+/*
+  参数：
+    - file：要执行的可执行文件路径（自动在系统环境变量下搜索可执行文件）
+    - arg：执行程序需要的参数（第一个为可执行文件的名称，中间为可执行文件需要的参数，最后需要以 NULL 结尾）
+
+  返回值：
+    - 调用失败，返回-1，并设置errno；调用成功，没有返回值（因为程序段已经被替换，不会再回到原 main）
+*/
+```
+
+```c
+#include <unistd.h>
+#include <sys/types.h>
+#include <stdio.h>
+
+int main()
+{
+    // create a new process
+    pid_t pid = fork();
+    pid_t child, parent;
+    if(pid > 0)
+    {
+        // parent process
+        printf("pid: %d\n", getpid());
+        parent = getpid();
+        printf("parent pid: %d, ppid: %d\n", getpid(), getppid());
+    }
+    else if(pid == 0)
+    {
+        // child process
+        execlp("ps", "ps", "aux", NULL); 	// 自动在环境变量中寻找 ps 可执行文件
+        // execlp("/home/ubuntu/lyy/cpp/webserver/hello","hello", NULL); 	// 绝对路径仍可以执行
+        child = getpid();
+        printf("child pid: %d, ppid: %d\n", getpid(), getppid());
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        if(getpid() == parent)
+        {
+            printf("parent i: %d, pid: %d\n", i, getpid());
+        }
+        else if(getpid() == child)
+        {
+            printf("child i: %d, pid: %d\n", i, getpid());
+        }
+        sleep(1);
+    }
+    return 0;
+}
+```
+
+
+
+### c. execle
+
+```c
+int execle(const char *pathname, const char *arg, ... /*, (char *) NULL, char *const envp[] */);
+/*
+  参数：
+    - pathname：要执行的可执行文件路径（在自己定义的环境路径下搜索可执行文件）
+    - arg：执行程序需要的参数（第一个为可执行文件的名称，中间为可执行文件需要的参数，最后需要以 NULL 结尾）
+    - envp：自己定义的环境路径，如char * envp[] = {"/home/ubuntu", "home/bin"};
+
+  返回值：
+    - 调用失败，返回-1，并设置errno；调用成功，没有返回值（因为程序段已经被替换，不会再回到原 main）
+*/
+```
+
+
+
+### d. execv
+
+```c
+int execv(const char *pathname, char *const argv[]);
+/*
+  参数：
+    - pathname：要执行的程序路径（相对路径或绝对路径）
+    - arg：执行程序需要的参数（第一个为可执行文件的名称，中间为可执行文件需要的参数，最后需要以 NULL 结尾），以数组的形式传入，如， char * argv[] = {"ps", "aux", NULL};
+
+  返回值：
+    - 调用失败，返回-1，并设置errno；调用成功，没有返回值（因为程序段已经被替换，不会再回到原 main）
+*/
+```
+
+```c
+int execvp(const char *file, char *const argv[]);
+/*
+  参数：
+    - file：要执行的可执行文件路径（自动在系统环境变量下搜索可执行文件）
+    - arg：执行程序需要的参数（第一个为可执行文件的名称，中间为可执行文件需要的参数，最后需要以 NULL 结尾），以数组的形式传入，如， char * argv[] = {"ps", "aux", NULL};
+
+  返回值：
+    - 调用失败，返回-1，并设置errno；调用成功，没有返回值（因为程序段已经被替换，不会再回到原 main）
+*/
+```
+
+```c
+int execvpe(const char *file, char *const argv[], char *const envp[]);
+/*
+  参数：
+    - pathname：要执行的可执行文件路径（在自己定义的环境路径下搜索可执行文件）
+    - arg：执行程序需要的参数（第一个为可执行文件的名称，中间为可执行文件需要的参数，最后需要以 NULL 结尾），以数组的形式传入，如， char * argv[] = {"ps", "aux", NULL};
+    - envp：自己定义的环境路径，如char * envp[] = {"/home/ubuntu", "home/bin"};
+
+  返回值：
+    - 调用失败，返回-1，并设置errno；调用成功，没有返回值（因为程序段已经被替换，不会再回到原 main）
+*/
+```
+
+---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+==c不支持函数重载==
 
