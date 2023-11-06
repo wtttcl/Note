@@ -2319,6 +2319,12 @@ int main()
 - 任何进程（除 init 进程）都是由另一个进程创建，该进程称为被创建进程的父进程， 对应的进程号称为父进程号（PPID）。
 - 进程组是一个或多个进程的集合。他们之间相互关联，进程组可以接收同一终端的各 种信号，关联的进程有一个进程组号（PGID）。默认情况下，当前的进程号会当做当 前的进程组号。
 
+## 进程控制块 PCB
+
+进程控制块 PCB 是用来描述进程的数据结构，包括进程号、进程状态、等进程的相关信息。
+
+每一个进程均有一个 PCB，在创建进程时，建立 PCB，伴随进程运行的全过程，直到进程撤消而撤消。
+
 ## 进程相关命令
 
 ### 1. ps aux / ajx
@@ -2366,7 +2372,13 @@ ulimit -a
 
 <img src="./assets/image-20231103133637108.png" alt="image-20231103133637108" style="zoom:100%;" />
 
-### 2. fork
+### 2. 进程控制块 PCB
+
+
+
+
+
+### 3. fork
 
 - 一个现有的进程可以调用 `fork` 函数创建一个新进程，称为子进程。`fork` 函数被调用一次，但**返回两次**，一次返回给子进程，返回值为0，一次返回给父进程，返回值为子进程的进程号。（因为父子进程是一对多的关系，所以子进程返回 0 即可，而父进程需要返回子进程的进程号）。
 - 当该子进程创建时，它和父进程都会 **从 `fork` 调用的下一条（或者说从 `fork` 的返回处）**开始执行继续执行与父进程相同的代码。
@@ -2491,7 +2503,7 @@ int main()
 
 ---
 
-## 3. exec 函数族
+### 4. exec 函数族
 
 - 当进程调用一种 `exec` 函数时，该进程执行的程序完全替换为新程序，而 **新程序则从其 `main` 函数开始执行**。**`exec` 函数用磁盘上的一个新程序替换了当前进程的正文段、数据段、堆段和栈段。**
 
@@ -2508,7 +2520,7 @@ int main()
 
 
 
-### a. execl
+#### a. execl
 
 ```c
 int execl(const char *pathname, const char *arg, ... /* (char  *) NULL */);
@@ -2575,7 +2587,7 @@ int main()
 
 ![image-20231105165818494](./assets/image-20231105165818494.png)
 
-### b. execlp
+#### b. execlp
 
 ```c
 int execlp(const char *file, const char *arg, ... /* (char  *) NULL */);
@@ -2632,7 +2644,7 @@ int main()
 
 
 
-### c. execle
+#### c. execle
 
 ```c
 int execle(const char *pathname, const char *arg, ... /*, (char *) NULL, char *const envp[] */);
@@ -2649,7 +2661,7 @@ int execle(const char *pathname, const char *arg, ... /*, (char *) NULL, char *c
 
 
 
-### d. execv
+#### d. execv
 
 ```c
 int execv(const char *pathname, char *const argv[]);
@@ -2690,27 +2702,421 @@ int execvpe(const char *file, char *const argv[], char *const envp[]);
 
 ---
 
+### 5. 孤儿进程和僵尸进程
+
+- 每个进程结束时，都会释放自己地址空间中 **用户区** 的数据，但是**进程不能释放自己内核区中 PCB**，需要父进程去释放。 
+
+- 在每个进程退出的时候，内核释放该进程所有的资源、包括打开的文件、占用的内存等。但是仍然为其保留一定的信息，这些信息主要主要指进程控制块 PCB 的信息 （包括进程号、退出状态、运行时间等）。
+- 父进程可以通过调用 `wait` 或 `waitpid` 得到它的退出状态同时彻底清除掉这个进程。
+
+#### a. 孤儿进程（orphan）
+
+孤儿进程：父进程运行结束，但子进程还在执行的进程称为孤儿进程。内核会把孤儿进程的父进程设置为 `init` 进程，而每当有一个孤儿进程结束，`init` 就会调用 `wait()` 取得其终止状态，释放子进程占用的资源。
+
+- 孤儿进程不会有负面影响
+- 孤儿进程的父进程是 `init`
+
+**举个例子**：让子进程每次循环 sleep(1)，模拟父进程执行结束，子进程还在执行的情况：
+
+```c
+#include <sys/types.h>
+#include <unistd.h>
+#include <stdio.h>
+
+int main()
+{
+    // create a new pid
+    pid_t pid = fork();
+    pid_t child, parent;
+
+    if(pid > 0)
+    {
+        // parent
+        printf("pid: %d\n", getpid());
+        parent = getpid();
+        printf("parent pid: %d, ppid: %d\n", getpid(), getppid());
+    }
+    else if (pid == 0)
+    {
+        //child
+        child = getpid();
+        printf("child pid: %d, ppid: %d\n", getpid(), getppid());
+    }
+    for(int i = 0; i < 5; i++)
+    {
+        if(getpid() == parent)
+        {
+            printf("parent i: %d, pid: %d\n", i, getpid());
+        }
+        else if(getpid() == child)
+        {
+            printf("child i: %d, pid: %d\n", i, getpid());
+            sleep(1);
+        }
+    }
+
+    return 0;
+}
+```
+
+运行结果：由于子进程复制了父进程的文件描述符表，所以子进程的标准输出也是控制台，可以看到父进程结束后，子进程仍在执行，且其父进程已经变成 `init`。
+
+![image-20231106143154205](./assets/image-20231106143154205.png)
+
+#### b. 僵尸进程（zombie）
+
+僵尸进程：一个已经终止，但是父进程尚未对其进行善后处理（获取子进程的信息，释放子进程占用的资源）的进程被称为僵尸进程。
+
+- 僵尸进程不能被 `kill -9` 命令杀死。
+- 僵尸进程会一直占用进程号，如果产生大量的僵尸进程，会影响系统创建新的进程。
 
 
 
+**举个例子**：让父进程死循环，模拟子进程已经终止，但父进程未回收资源的情况：
+
+```c
+#include <sys/types.h>
+#include <unistd.h>
+#include <stdio.h>
+
+int main()
+{
+    // create a new pid
+    pid_t pid = fork();
+    pid_t child, parent;
+
+    if(pid > 0)
+    {
+        // parent
+        while(1)
+        {
+            printf("pid: %d\n", getpid());
+            parent = getpid();
+            printf("parent pid: %d, ppid: %d\n", getpid(), getppid());
+        } 
+    }
+    else if (pid == 0)
+    {
+        //child
+        child = getpid();
+        printf("child pid: %d, ppid: %d\n", getpid(), getppid());
+    }
+    for(int i = 0; i < 5; i++)
+    {
+        if(getpid() == parent)
+        {
+            printf("parent i: %d, pid: %d\n", i, getpid());
+        }
+        else if(getpid() == child)
+        {
+            printf("child i: %d, pid: %d, ppid: %d\n", i, getpid(), getppid());
+            // sleep(1);
+        }
+    }
+
+    return 0;
+}
+```
+
+运行结果：可以看到子进程被标记为僵尸进程。
+
+![image-20231106143353897](./assets/image-20231106143353897.png)
+
+### 6. exit 和 _exit
+
+```c
+void exit(int status); 	// 标准 C 库 IO 函数，头文件是 #include <stdlib.h>
+/*
+  参数：
+    - status：进程退出时的一个状态，父进程可以通过wait或waitpid在回收子进程资源时可以获得该状态
+
+  作用：
+    - 退出进程前，会额外调用退出处理函数、刷新I/O缓冲区，关闭文件描述符；然后调用 _exit()系统调用，最后进程结束运行。
+*/
+```
+
+```c
+void _exit(int status);	// linux 系统调用，头文件是 #include <unistd.h>
+/*
+  参数：
+    - status：进程退出时的一个状态，父进程可以通过wait或waitpid在回收子进程资源时可以获得该状态
+
+  作用：
+    - 退出进程
+*/
+```
+
+<img src="./assets/image-20231106095138967.png" alt="image-20231106095138967" style="zoom:80%;" />
+
+```c
+/*
+#include <stdlib.h>
+
+void exit(int status);
+  参数：
+    - status：进程退出时的一个状态，父进程回收子进程资源时可以获得
+
+  作用：
+    - 退出进程前，会额外调用退出处理函数、刷新I/O缓冲区，关闭文件描述符；然后调用 _exit()系统调用，最后进程结束运行。
+
+#include <unistd.h>
+
+void _exit(int status);
+
+  参数：
+    - status：进程退出时的一个状态，父进程回收子进程资源时可以获得
+
+  作用：
+    - 退出进程
+*/
+
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+int main()
+{
+    printf("hello\n");
+    printf("world");
+
+    // exit(0);
+    _exit(0);
+}
+```
 
 
 
+运行 `exit()`，自动刷新缓冲区，“world” 被输出：
+
+<img src="./assets/image-20231106112258360.png" alt="image-20231106112258360" style="zoom:80%;" />
+
+运行 `_exit()`，不刷新缓冲区，“world” 没有被输出：
+
+<img src="./assets/image-20231106112330225.png" alt="image-20231106112330225" style="zoom:80%;" />
+
+### 7. `wait` 和 `waitpid`
+
+#### a. `wait`
+
+- 调用 `wait` 时，父进程以 **阻塞态等待** 子进程执行结束；
+- 成功调用 `wait`，返回回收的子进程的进程号。
+- 一个 `wait` 只能回收一个子进程，多个子进程需要多个 `wait` 进行回收
+
+```c
+pid_t wait(int *wstatus);
+/*
+  参数：
+    - wstatus：指向进程退出时的状态信息。若非 NULL，则会存储进程状态信息
+      - WIFEXITED(status)：非0，进程正常退出；
+      - WIFSIGNALED(status)：非0，进程异常终止；
+
+  返回值：
+    - 调用成功，返回被回收的子进程 pid；调用失败或没有子进程需要回收，返回 -1。
+
+  作用：
+    - 父进程以阻塞态等待任意一个子进程结束，回收其资源。（一个 wait 只能回收一个子进程，多个子进程需要多个 wait 进行回收
+*/
+```
+
+举个例子：
+
+```c
+/*
+#include <sys/types.h>
+#include <sys/wait.h>
+
+pid_t wait(int *wstatus);
+  参数：
+    - wstatus：指向进程退出时的状态信息。
+    
+  返回值：
+    - 调用成功，返回被回收的子进程 pid；调用失败或没有子进程需要回收，返回 -1。
+    
+  作用：
+	- 父进程以阻塞态等待任意一个子进程结束，回收其资源。（一个 wait 只能回收一个子进程，多个子进程需要多个 wait 进行回收）
+*/
+
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+int main()
+{
+    pid_t pid;
+    for(int i = 0; i < 3; i++)
+    {
+        pid = fork();
+        if(pid ==0) break;  // 如果没有这行判断，for 循环会创建大于 3 个子进程。
+    }
+    if(pid > 0)
+    {
+        // parent
+        while(1)
+        {
+            printf("parent pid: %d\n", getpid());
+            int ret = wait(NULL);   // 调用成功，返回回收的子进程 pid
+            if(ret == -1) break;    // 所有子进程全部回收
+            printf("child %d died!\n", ret);
+        }
+    }
+    else if(pid == 0)
+    {
+        // child
+        while(1)
+        {
+            printf("child pid: %d, ppid: %d\n", getpid(), getppid());
+            sleep(2);
+        }
+        
+    }
+    return 0;
+}
+```
+
+运行结果：
+
+父进程一直被阻塞，直到一个子进程结束执行。
+
+<img src="./assets/image-20231106145850804.png" alt="image-20231106145850804" style="zoom:80%;" />
+
+调用 `wait` 获取子进程状态：
+
+![image-20231106153636022](./assets/image-20231106153636022.png)
+
+<img src="./assets/image-20231106153624655.png" alt="image-20231106153624655" style="zoom:80%;" />
+
+#### b. status
+
+```c
+ WIFEXITED(wstatus)
+              returns true if the child terminated normally, that is, by calling exit(3) or _exit(2), or by returning from main().
+
+WEXITSTATUS(wstatus)
+              returns the exit status of the child.  This consists of the least significant 8 bits of the status argument  that  the  child
+              specified  in  a  call  to exit(3) or _exit(2) or as the argument for a return statement in main().  This macro should be em‐
+              ployed only if WIFEXITED returned true.
+
+WIFSIGNALED(wstatus)
+              returns true if the child process was terminated by a signal.
+
+WTERMSIG(wstatus)
+              returns the number of the signal that caused the child process to terminate.  This macro should be employed only  if  WIFSIG‐
+              NALED returned true.
+
+WCOREDUMP(wstatus)
+              returns  true  if  the  child produced a core dump (see core(5)).  This macro should be employed only if WIFSIGNALED returned
+              true.
+
+              This macro is not specified in POSIX.1-2001 and is not available on some UNIX implementations (e.g., AIX, SunOS).  Therefore,
+              enclose its use inside #ifdef WCOREDUMP ... #endif.
+
+WIFSTOPPED(wstatus)
+              returns  true if the child process was stopped by delivery of a signal; this is possible only if the call was done using WUN‐
+              TRACED or when the child is being traced (see ptrace(2)).
+
+WSTOPSIG(wstatus)
+              returns the number of the signal which caused the child to stop.  This macro should be employed only if  WIFSTOPPED  returned
+              true.
+
+WIFCONTINUED(wstatus)
+              (since Linux 2.6.10) returns true if the child process was resumed by delivery of SIGCONT.
+
+```
 
 
 
+#### c. `waipid`
 
 
 
+```c
+pid_t waitpid(pid_t pid, int *wstatus, int options);
+/*
+  参数：
+    - pid：指定要回收的子进程的进程号
+      - pid > 0：指定要回收的资金后才能
+      - pid = 0：回收当前进程组的任意一个子进程（同一个父进程创建的子进程可以是不同组的）
+      - pid = -1：回收任意一个子进程，wait(-1, &wstatus, 0) = wait(&wstatus)
+      - pid < -1：回收指定进程组的任意一个子进程，进程组 id = |pid|
+    - wstatus：指向进程退出时的状态信息。若非 NULL，则会存储进程状态信息
+      - WIFEXITED(status)：非0，进程正常退出；
+      - WIFSIGNALED(status)：非0，进程异常终止；
+    - options:
+      - 0：阻塞
+      - WNOHANG：非阻塞
 
+  返回值：
+    - >0：返回的是回收的子进程的 pid
+    - =0：非阻塞的前提下，表示还有子进程仍在执行
+    - =-1：调用失败或所有子进程都回收了
 
+  作用：
+    - 等待回收子进程
+*/
+```
 
+举个例子：
 
+```c
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <stdio.h>
 
+int main()
+{
+    pid_t pid;
+    for(int i = 0; i < 3; i++)
+    {
+        pid = fork();
+        if(pid ==0) break;  // 如果没有这行判断，for 循环会创建大于 3 个子进程。
+    }
+    if(pid > 0)
+    {
+        // parent
+        while(1)
+        {
+            printf("parent pid: %d\n", getpid());
+            sleep(1);
 
+            int st;
+            int ret = waitpid(-1, &st, WNOHANG);   // 非阻塞回收子进程
+            if(ret == -1) break;    // 所有子进程全部回收
+            else if(ret == 0) continue;  // 还有子进程没有被回收
+            else if(ret > 0)
+            {
+              if(WIFEXITED(st)) {
+                  // 是不是正常退出
+                  printf("退出的状态码：%d\n", WEXITSTATUS(st));  // 返回的是子进程中调用 exit 时传入的状态
+              }
+              if(WIFSIGNALED(st)) {
+                  // 是不是异常终止
+                  printf("被哪个信号干掉了：%d\n", WTERMSIG(st));
+              }
+              printf("child %d died!\n", ret);
+            }
+        }
+    }
+    else if(pid == 0)
+    {
+        // child
+        while(1)
+        {
+            printf("child pid: %d, ppid: %d\n", getpid(), getppid());
+            sleep(2);
+        }
+        exit(0);
+        
+    }
+    return 0;
+}
+```
 
+运行结果：
 
+和 `wait` 不同，非阻塞态的父进程也一直在执行。
 
+<img src="./assets/image-20231106154334194.png" alt="image-20231106154334194" style="zoom:80%;" />
 
 
 
@@ -2728,3 +3134,20 @@ int execvpe(const char *file, char *const argv[], char *const envp[]);
 
 ==c不支持函数重载==
 
+
+
+
+
+# C 注意事项
+
+## 1. printf() 缓冲区刷新
+
+printf 是一个行缓冲函数，先将数据放到缓冲区中，满足一定条件才会将缓冲区中的内容输出到标准输出。
+
+刷新缓冲区的条件：
+
+- 缓冲区写满
+- 遇到 '\n'，'\r'
+- 调用 fflush 手动刷新缓冲区
+- 调用 scanf 从缓冲区中读取数据
+- 程序结束
