@@ -3118,13 +3118,26 @@ int main()
 
 <img src="./assets/image-20231106154334194.png" alt="image-20231106154334194" style="zoom:80%;" />
 
+# 进程间通信
 
+- 进程是一个独立的资源分配单元，不同进程之间的资源是独立的，不能在一个进程中访问另一个进程的资源。
+- 进程不是鼓励的，可以用过进程间通信（IPC）进行信息交互
 
+- 进程间通信的目的：
+  - 数据传输：进程 A 向进程 B 数据传输；
+  - 通知事件：进程 A 向进程 B 发送消息，通知发生了某时间
+  - 资源共享：多进程之间共享资源；
+  - 进程控制：进程 A 控制进程 B 的执行。
 
+## 进程间通信的方式
 
+<img src="C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20231106204510412.png" alt="image-20231106204510412" style="zoom:80%;" />
 
+## 匿名管道/管道
 
+UNIX 系统 IPC（进程间通信）的最古老的形式，所有 UNIX 系统都支持这种通信机制。
 
+<img src="C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20231106204640752.png" alt="image-20231106204640752" style="zoom: 67%;" />
 
 
 
