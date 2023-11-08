@@ -2234,8 +2234,7 @@ int fcntl(int fd, int cmd, ... );
       - F_GETFL：获取（返回） fd 指向的文件的状态 flag，如O_RDONLY/O_APPEND 等；
       - F_SETFL：设置 fd 指向的文件的状态 flag（重置而非增加）
         - 必选项：O_RDONLY, O_WRONLY, O_RDWR 不可以被修改
-        - 可选性：O_APPEND（追加数据）, O_NONBLOCK
-                O_APPEND（设置成非阻塞）
+        - 可选性：O_APPEND（追加数据）, O_NONBLOCK（设置成非阻塞）
 
   作用：
     - 基于文件描述符对文件进行操作
@@ -2824,6 +2823,14 @@ int main()
 
 ### 6. exit 和 _exit
 
+头文件：
+
+```c
+#include <stdlib.h>
+```
+
+
+
 ```c
 void exit(int status); 	// 标准 C 库 IO 函数，头文件是 #include <stdlib.h>
 /*
@@ -3131,13 +3138,461 @@ int main()
 
 ## 进程间通信的方式
 
-<img src="C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20231106204510412.png" alt="image-20231106204510412" style="zoom:80%;" />
+<img src="./assets/image-20231107152122062.png" alt="image-20231107152122062" style="zoom:80%;" />
 
 ## 匿名管道/管道
 
 UNIX 系统 IPC（进程间通信）的最古老的形式，所有 UNIX 系统都支持这种通信机制。
 
-<img src="C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20231106204640752.png" alt="image-20231106204640752" style="zoom: 67%;" />
+<img src="./assets/image-20231107152202805.png" alt="image-20231107152202805" style="zoom:67%;" />
+
+### 特点
+
+- 管道本质是一个在内核内存中维护的缓冲器，缓冲器的存储能力由操作系统决定。
+- 管道拥有文件的特质（读操作、写操作），可以按操作文件的方式对管道进行操作。匿名管道没有文件实体，有名管道有文件实体，但不存储数据。
+- 一个管道是一个字节流。进程可以从管道读取任意大小的数据块。
+- 通过管道传递的数据是顺序的，读取顺序与写入顺序相同。
+- 管道中数据的传递方向是单向的，一端写入，一端读取。管道是 **半双工**（可双向读写，但同时只能保证单向读写）的。
+- 从管道中读取数据是一次性的，数据一旦被读走，就被管道抛弃了。
+- 匿名管道只能在具有 **公共祖先** 的进程之间使用。
+
+
+
+<img src="./assets/image-20231107163331202.png" alt="image-20231107163331202" style="zoom:70%;" />
+
+### 为什么管道可以实现进程间通信？
+
+因为子进程和父进程共享文件描述符表，所以在 `fork` 之前，如果父进程已经指向了一个管道的读端和写端，那么子进程自然会拷贝，实现指向同一个管道的读端和写端，从而实现父子进程间的通信。（有公共祖先的进程同理）
+
+<img src="./assets/image-20231108100102840.png" alt="image-20231108100102840" style="zoom:80%;" />
+
+### 匿名管道的使用
+
+<img src="./assets/image-20231108100824743.png" alt="image-20231108100824743" style="zoom:80%;" />
+
+#### pipe
+
+头文件：
+
+```c
+#include <unistd.h>
+```
+
+```c
+int pipe(int pipefd[2]);
+/*
+  参数：
+    - pipefd：传出参数。两个文件描述符，pipefd[0] 指向管道读端，pipefd[1] 指向管道写端。
+
+  返回值：
+    - 调用成功，返回 0；调用失败，返回 -1。
+
+  作用：
+    - 创建一个管道，实现进程间通信。
+
+  注意：
+    - 当管道中没有写入内容时，读取管道的进程会被阻塞。
+*/
+```
+
+##### 实现：子进程通过管道向父进程发送数据，父进程通过管道向子进程发送数据
+
+```c
+/*
+#include <unistd.h>
+
+int pipe(int pipefd[2]);
+  参数：
+    - pipefd：传出参数。两个文件描述符，pipefd[0] 指向管道读端，pipefd[1] 指向管道写端。
+
+  返回值：
+    - 调用成功，返回 0；调用失败，返回 -1。
+
+  作用：
+    - 创建一个管道，实现进程间通信。
+
+  注意：
+    - 当管道中没有写入内容时，读取管道的进程会被阻塞。
+*/
+
+// 实现：子进程通过管道向父进程发送数据，父进程通过管道向子进程发送数据
+#include <unistd.h>
+#include <sys/types.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+int main()
+{
+    int pipefd[2];
+    int ret = pipe(pipefd);
+    if(ret == -1)
+    {
+        perror("pipe");
+        exit(0);
+    }
+
+    pid_t pid = fork();
+    if(pid > 0)
+    {
+        // parent
+        close(pipefd[1]);   // 关闭写端（父进程不需要写）
+        char buf[1024] = {0};
+        int len = -1;
+        while((len = read(pipefd[0], buf, sizeof(buf))) > 0)
+        {
+            printf("parent recv: %s, pid = %d\n", buf, getpid());
+            memset(buf, 0, sizeof(buf));
+        }
+    }
+    else if(pid == 0)
+    {
+        // child
+        close(pipefd[0]);   // 关闭读端（子进程不需要读）
+        char * str = "message from child! ";
+        while(1)
+        {
+            write(pipefd[1], str, strlen(str));
+            sleep(1);
+        }
+    }
+    else if(pid == -1)
+    {
+        perror("fork");
+        exit(0);
+    }
+}
+```
+
+##### 实现：ps aux | grep xxx （只实现了前半部分）
+
+```c
+// 实现：ps aux | grep xxx 父子进程间通信
+
+#include <sys/types.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>     // exit 头文件
+#include <string.h>
+
+int main()
+{
+    int pipefd[2];
+    int ret = pipe(pipefd);
+    if(ret == -1)
+    {
+        perror("pipe");
+        exit(0);
+    }
+
+    pid_t pid = fork();
+    if(pid > 0)
+    {
+        // parent
+        close(pipefd[1]);
+        char buf[1024] = {0};
+        int len = -1;
+        while((len = read(pipefd[0], buf, sizeof(buf)-1)) > 0)
+        {
+            printf("%s", buf);
+            memset(buf, 0, sizeof(buf));
+        }
+
+    }
+    else if(pid == 0)
+    {
+        // child
+        close(pipefd[0]);
+        dup2(pipefd[1], STDOUT_FILENO);     // 2 -> 1
+        execlp("ps", "ps", "aux", NULL);
+    }
+    else if(pid == -1)
+    {
+        perror("fork");
+        exit(0);
+    }
+
+    return 0;
+}
+
+```
+
+![image-20231108112524471](./assets/image-20231108112524471.png)
+
+#### fpathconf
+
+头文件：
+
+```
+#include <unistd.h>
+```
+
+```c
+long fpathconf(int fd, int name);
+/*
+  参数： 
+    - fd：文件描述符
+    - name：一些宏，代表各个属性值
+      -  _PC_PIPE_BUF：表示 pipe 的大小
+      - ...
+    
+  返回值：
+	- 调用成功，返回属性值；调用失败，返回 -1‘
+    
+  作用：
+	- 获取文件相关的一些配置信息
+*/
+```
+
+举个例子：返回管道缓冲区的默认大小
+
+```c
+#include <unistd.h>
+#include <sys/types.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+int main() {
+
+    int pipefd[2];
+
+    int ret = pipe(pipefd);
+
+    // 获取管道的大小
+    long size = fpathconf(pipefd[0], _PC_PIPE_BUF);
+
+    printf("pipe size : %ld\n", size);
+
+    return 0;
+}
+```
+
+### 匿名管道的读写特点
+
+读管道时：
+
+- 管道中有数据：read 返回实际读到的字节数；
+- 管道中无数据：
+  - 若写端关闭，则 read 返回 0，表示读完；
+  - 若写端没有全部关闭，read 阻塞等待。
+
+写管道时：
+
+- 读端全部关闭：内核发送 SIGPIPE 信号给进程，进程异常终止；
+- 读端没有全部关闭：
+  - 若管道已满：write阻塞，等待数据被读取；
+  - 若管道未满：write 继续写入，返回实际写入的字节数。
+
+### 非阻塞态读取管道
+
+```c
+// 设置管道非阻塞读（利用 fcntl 函数）
+
+#include <unistd.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <string.h>
+
+int main()
+{
+    int pipefd[2];
+    int ret = pipe(pipefd);
+    if(ret == -1)
+    {
+        perror("pipe");
+        exit(0);
+    }
+
+    
+    if(ret == -1)
+    {
+        perror("fcntl");
+        exit(0);
+    }
+
+    pid_t pid = fork();
+    if(pid > 0)
+    {
+        // parent
+        close(pipefd[1]);
+
+        // set nonblock
+        int flag = fcntl(pipefd[0], F_GETFL);
+
+        flag |= O_NONBLOCK;
+
+        ret = fcntl(pipefd[0], F_SETFL, flag);
+
+        char buf[1024] = {0};
+        int len = -1;
+        while(1)
+        {
+            len = read(pipefd[0], buf, sizeof(buf)-1);
+            printf("len: %d\n", len);
+            printf("parent recv: %s, pid: %d\n", buf, getpid());
+            memset(buf, 0, sizeof(buf));
+            sleep(2);
+        }
+    }
+    else if(pid == 0)
+    {
+        // child
+        close(pipefd[0]);
+        char * str = "message from child";
+        int cnt = 0;
+        while(cnt < 3)
+        {
+            write(pipefd[1], str, strlen(str));
+            sleep(5);
+            cnt++;
+        }
+        close(pipefd[1]); 	// 写端关闭后，在读取完所有数据后，父进程 len = 0
+    }
+    else if(pid == -1)
+    {
+        perror("fork");
+        exit(0);
+    }
+
+    return 0;
+}
+```
+
+
+
+![image-20231108165512679](./assets/image-20231108165512679.png)
+
+
+
+如果不关闭父进程读端，也不读取管道，则子进程会一直发送信息给管道，直到管道满：
+
+
+
+```c
+// 设置管道非阻塞读（利用 fcntl 函数）
+
+#include <unistd.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <string.h>
+
+int main()
+{
+    int pipefd[2];
+    int ret = pipe(pipefd);
+    if(ret == -1)
+    {
+        perror("pipe");
+        exit(0);
+    }
+
+    
+    if(ret == -1)
+    {
+        perror("fcntl");
+        exit(0);
+    }
+
+    pid_t pid = fork();
+    if(pid > 0)
+    {
+        // parent
+        close(pipefd[1]);
+        sleep(300;
+    }
+    else if(pid == 0)
+    {
+        // child
+        close(pipefd[0]);
+        char * str = "message from child";
+        // int cnt = 0;
+        while(1)
+        {
+            write(pipefd[1], str, strlen(str));
+            printf("child send: %s, pid: %d\n", str, getpid());
+        }
+        close(pipefd[1]);
+    }
+    else if(pid == -1)
+    {
+        perror("fork");
+        exit(0);
+    }
+
+    return 0;
+}
+```
+
+
+
+![image-20231108170024693](./assets/image-20231108170024693.png)
+
+---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3150,6 +3605,43 @@ UNIX 系统 IPC（进程间通信）的最古老的形式，所有 UNIX 系统�
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+# linux 命令
+
+## wc
+
+```shell
+wc [-lwm]
+#  参数：
+#    -l： 仅列出行
+#    -w：仅列出多少字（英文单字）
+#    -m：多少字符
+```
+
+e.g.
+
+```shell
+~$:cat 1.txt | wc 	# 行数 字数 字符数
+```
+
+```txt
+# 1.txt 内容
+hello, dup2nihao
+```
+
+注意：这里 **行数为 0 说明文件中没有换行符**
+
+<img src="./assets/image-20231107153136870.png" alt="image-20231107153136870" style="zoom:90%;" />
 
 # C 注意事项
 
@@ -3164,3 +3656,7 @@ printf 是一个行缓冲函数，先将数据放到缓冲区中，满足一定�
 - 调用 fflush 手动刷新缓冲区
 - 调用 scanf 从缓冲区中读取数据
 - 程序结束
+
+## 2. bzero  清零内存（已弃用，用 memset 代替）
+
+bzero() 函数用于将一段内存区域清零，即将这段内存区域中的所有字节都设置为0。
