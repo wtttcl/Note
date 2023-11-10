@@ -1417,7 +1417,7 @@ int access(const char *pathname, int mode);
     - 判断用户对某个文件是否有某个权限或某个文件是否存在
 
   返回值：
-    - 调用成功，返回0；调用失败，返回-1
+    - 文件存在或文件拥有某个权限，返回0；反之，返回-1
 */
 ```
 
@@ -1441,7 +1441,7 @@ int access(const char *pathname, int mode);
     - 判断用户对某个文件是否有某个权限或文件是否存在
 
   返回值：
-    - 调用成功，返回0；调用失败，返回-1
+    - 文件存在或文件拥有某个权限，返回0；反之，返回-1
 */
 
 #include <unistd.h>
@@ -3140,7 +3140,7 @@ int main()
 
 <img src="./assets/image-20231107152122062.png" alt="image-20231107152122062" style="zoom:80%;" />
 
-## 匿名管道/管道
+## 匿名管道/管道 PIPE
 
 UNIX 系统 IPC（进程间通信）的最古老的形式，所有 UNIX 系统都支持这种通信机制。
 
@@ -3370,6 +3370,8 @@ int main() {
 
 ### 匿名管道的读写特点
 
+只打开读端或者只打开写端，会阻塞。
+
 读管道时：
 
 - 管道中有数据：read 返回实际读到的字节数；
@@ -3534,31 +3536,536 @@ int main()
 
 ---
 
+## 有名管道 FIFO
+
+- 匿名管道受限于有亲缘关系的进程间通信，而有名管道提供了一个文件的实体，以 FIFO（管道的数据读取顺序与写入顺序相同，先入先出） 的文件形式存在于文件系统（**写入管道的内容不存放在文件中，而是存放在内存缓冲区中**）中，因此可以在无亲缘关系的进程间实现通信。
+
+### 有名管道的创建
+
+#### 命令创建
+
+```shell
+mkfifo fifo
+```
+
+<img src="./assets/image-20231109194524562.png" alt="image-20231109194524562" style="zoom:80%;" />
+
+#### `mkfifo` 函数创建
+
+头文件：
+
+```c
+#include <sys/types.h>
+#include <sys/stat.h>
+```
 
 
 
+```c
+int mkfifo(const char *pathname, mode_t mode);
+/*
+  参数：
+    - pathname：管道路径
+    - mode：文件的权限，和 open 中的 mode 相同
+
+  返回值：
+    - 调用成功，返回 0； 调用失败，返回 -1。
+
+  作用：
+    - 创建一个有名管道
+*/
+```
 
 
 
+```c
+/*
+#include <sys/types.h>
+#include <sys/stat.h>
+
+int mkfifo(const char *pathname, mode_t mode);
+  参数：
+    - pathname：管道路径
+    - mode：文件的权限，和 open 中的 mode 相同
+
+  返回值：
+    - 调用成功，返回 0； 调用失败，返回 -1。
+
+  作用：
+    - 创建一个有名管道
+*/
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+int main()
+{
+    // 查看有名管道是否存在，不存在则创建有名管道
+    int ret = access("fifo1", F_OK);
+    if(ret == -1)
+    {
+        printf("fifo not exits, create fifo test!\n");
+        ret = mkfifo("fifo1", 0664);
+        if(ret == -1)
+        {
+            perror("mkfifo");
+            exit(0);
+        }
+    }
+}
+```
+
+运行结果：
+
+<img src="./assets/image-20231109170418579.png" alt="image-20231109170418579" style="zoom:80%;" />
+
+### 有名管道的读写
+
+读写特点：
+
+- 若读端全部关闭，则写端进程会异常终止。
+- 若存在读端，则写端进程一直写到缓冲区满阻塞等待。
+- 若写端全部关闭，则读端进程在读完缓冲区后，结束进程。
+- 若存在写端，则读端进程一直阻塞直到写端写入数据。
+
+```c
+// write.c
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>  // OPEN
+#include <string.h>
+
+int main()
+{
+    // 判断有名管道是否存在，若不存在，则创建有名管道
+    int ret = access("test", F_OK);
+    if(ret == -1)
+    {
+        printf("fifo not exits, create fifo test!\n");
+        
+        ret = mkfifo("test", 0664);
+        if(ret == -1)
+        {
+            perror("mkfifo");
+            exit(0);
+        }       
+    }
+    ///////////
+    int fd = open("test", O_RDONLY);    // 以仅写形式打开有名管道。不能读写，否则由于一直有读端存在，进程会一直向管道内写直到管道满而非阻塞等待
+    char buf[1024] = {0};
+    int cnt = 0;
+    while(cnt < 10)
+    {
+        sprintf(buf, "hello %d\n", cnt++);
+        printf("write data: %s", buf);
+        write(fd, buf, strlen(buf));
+        sleep(1);
+    }
+
+    close(fd);
+    return 0;
+}
+```
+
+```c
+// read.c
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <string.h>
+
+int main()
+{
+    // int ret = access("test", 0664);
+    // if(ret == -1)
+    // {
+    //     printf("fifo not exits!\n");
+    //     exit(0);      
+    // }
+
+    int fd = open("test", O_RDONLY);
+    
+    char buf[1024] = {0};
+    int len = -1;
+    while((len = read(fd, buf, sizeof(buf))) > 0)
+    {
+        printf("read data: %s", buf);
+        memset(buf, 0, sizeof(buf));
+        sleep(2);
+    }
+    close(fd);
+    return 0;
+}
+```
+
+### 有名管道实现简单的聊天
+
+注意：
+
+- **管道文件不能读写打开**，这样的行为是未定义的。管道是半双工的。
+
+- 进程调用 `open` 以只读或只写打开管道文件时，在管道文件的另一些写/读端没有被打开时，进程会阻塞。
+- 当一个读写端都被打开的管道的读端或者写端被关闭时，写/读管道的进程会接收到 `SIGPIPE` 信号，进程异常终止。
+
+```c
+// chatA.c
+// 创建两个有名管道，管道 1 实现 A 写 B 读，管道 2 实现 B 写 A 读。
+// 必须一个先读后写，一个先写后读，否则会阻塞
+
+#include <sys/types.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+int main()
+{
+    int ret = access("awbr", F_OK);
+    if(ret == -1)
+    {
+        printf("fifo not exits, create a fifo for A to write, for B to read\n");
+        ret = mkfifo("awbr", 0664);
+        if(ret == -1)
+        {
+            perror("mkfifio awbr");
+            exit(0);
+        }
+    }
+    printf("awbr exits!\n");
+
+    ret = access("bwar", F_OK);
+    if(ret == -1)
+    {
+        printf("fifo not exits, create a fifo for B to write, for A to read\n");
+        ret = mkfifo("bwar", 0664);
+        if(ret == -1)
+        {
+            perror("mkfifio bwar");
+            exit(0);
+        }
+    }
+    printf("bwar exits!\n");
+
+    int fdw = open("awbr", O_WRONLY);
+    if(fdw == -1) {
+        perror("open fdw");
+        exit(0);
+    }
+    printf("A open awbr!\n");
+
+    int fdr = open("bwar", O_RDONLY);
+    if(fdr == -1) {
+        perror("open fdr");
+        exit(0);
+    }
+    printf("A open bwar!\n");
+
+    char buf[1024] = {0};
+
+    while(1)
+    {
+        // write
+        memset(buf, 0, 1024);
+        fgets(buf, 1024, stdin);
+        write(fdw, buf, strlen(buf));
+        printf("A: %s\n", buf);
+
+        // read
+        memset(buf, 0, 1024);
+        int len = read(fdr, buf, sizeof(buf));
+        if(len < 0)
+        {
+            perror("read");
+            exit(0);
+        }
+        printf("B: %s\n", buf);
+    }
+
+    // close
+    close(fdw);
+    close(fdr);
+
+    return 0;
+}
+
+
+// chatB.c
+// 创建两个有名管道，管道 1 实现 A 写 B 读，管道 2 实现 B 写 A 读。
+// 必须一个先读后写，一个先写后读，否则会阻塞
+
+#include <sys/types.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+int main()
+{
+    int ret = access("bwar", F_OK);
+    if(ret == -1)
+    {
+        printf("fifo not exits, create a fifo for B to write, for A to read\n");
+        ret = mkfifo("bwar", 0664);
+        if(ret == -1)
+        {
+            perror("mkfifio bwar");
+            exit(0);
+        }
+    }
+    printf("bwar exits!\n");
+
+    ret = access("awbr", F_OK);
+    if(ret == -1)
+    {
+        printf("fifo not exits, create a fifo for A to write, for B to read\n");
+        ret = mkfifo("awbr", 0664);
+        if(ret == -1)
+        {
+            perror("mkfifio awbr");
+            exit(0);
+        }
+    }
+    printf("awbr exits!\n");
+
+    int fdr = open("awbr", O_RDONLY);
+    if(fdr == -1) {
+        perror("open fdr");
+        exit(0);
+    }
+    printf("B open awbr!\n");
+
+    int fdw = open("bwar", O_WRONLY);
+    if(fdw == -1) {
+        perror("open fdw");
+        exit(0);
+    }
+    printf("B open bwar!\n");
+    
+    char buf[1024] = {0};
+
+    while(1)
+    {
+        // read
+        memset(buf, 0, 1024);
+        int len = read(fdr, buf, sizeof(buf));
+        if(len < 0)
+        {
+            perror("read");
+            exit(0);
+        }
+        printf("len: %d\n", len);
+        printf("A: %s\n", buf);
+
+        // write
+        memset(buf, 0, 1024);
+        fgets(buf, 1024, stdin);
+        write(fdw, buf, strlen(buf));
+        printf("B: %s\n", buf);  
+    }
+
+    // close
+    close(fdw);
+    close(fdr);
+
+    return 0;
+}
+```
+
+运行结果：
+
+<img src="./assets/image-20231110150659899.png" alt="image-20231110150659899" style="zoom:50%;" /><img src="./assets/image-20231110150715098.png" alt="image-20231110150715098" style="zoom:50%;" />
+
+## 内存映射 `mmap` 和 `munmap`
+
+内存映射：将磁盘文件的数据映射到内存，用户通过修改内存就能修改磁盘文件。
+
+- 磁盘文件：磁盘文件是存储在硬盘或其他永久性存储介质上的数据。
+- 内存：内存是计算机用于临时存储和访问数据的地方，用来执行文件。
+
+![image-20231110150414427](./assets/image-20231110150414427.png)
+
+头文件：
+
+```c
+#include <sys/mman.h>
+```
+
+mmap：
+
+```c
+void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset);
+/*
+  参数：
+    - addr：内存映射区地址。若为 NULL，内核指定；若非 NULL，内核根据此指定内存。
+    - length：要映射的数据的长度，必须大于 0。建议使用文件的长度（stat 或 lseek 获取）。
+    - prot：内存映射区的操作权限（必须为 PROT_NONE 或带 PROT_READ 的一个或多个权限位或表达式）
+        - PROT_EXEC ：可执行的权限
+        - PROT_READ ：读权限
+        - PROT_WRITE ：写权限
+        - PROT_NONE ：没有权限
+    - flags：标记内存营社区和磁盘文件是否同步更新
+      - MAP_SHARED：内存映射区更新，磁盘文件同步更新。进程间通信前提。
+      - MAP_PRIVATE：内存映射区与磁盘文件不同步更新。若内存映射区更新，内核会在磁盘中创建一个新的文件（copy on write）。
+    - fd：需要映射的文件的文件描述符。
+        注意：open 的权限不能和 prot 参数有冲突。
+    - offset：偏移量，一般不用。必须指定的是4k的整数倍，0表示不偏移。
+
+  返回值：
+    - 调用成功，返回内存映射区首地址；调用失败，返回宏MAP_FAILED（(void *) -1）。
+
+  作用：
+    - 将磁盘文件映射到内存中。
+*/
+```
 
 
 
+munmap：
+
+```c
+int munmap(void *addr, size_t length);
+/*
+  参数：
+    - addr：要释放的内存的首地址
+    - length：要释放的内存的大小
+
+  返回值：
+    - 调用成功，返回 0；调用失败，返回 -1，并设置 errno。
+
+  作用：
+    - 释放内存映射。
+*/
+```
 
 
 
+举个例子：
+
+```c
+/*
+#include <sys/mman.h>
+
+void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset);
+  参数：
+    - addr：内存映射区地址。若为 NULL，内核指定；若非 NULL，内核根据此指定内存。
+    - length：要映射的数据的长度，必须大于 0。建议使用文件的长度（stat 或 lseek 获取）。
+    - prot：内存映射区的操作权限（必须为 PROT_NONE 或带 PROT_READ 的一个或多个权限位或表达式）
+        - PROT_EXEC ：可执行的权限
+        - PROT_READ ：读权限
+        - PROT_WRITE ：写权限
+        - PROT_NONE ：没有权限
+    - flags：标记内存营社区和磁盘文件是否同步更新
+      - MAP_SHARED：内存映射区更新，磁盘文件同步更新。进程间通信前提。
+      - MAP_PRIVATE：内存映射区与磁盘文件不同步更新。若内存映射区更新，内核会在磁盘中创建一个新的文件（copy on write）。
+    - fd：需要映射的文件的文件描述符。
+        注意：open 的权限不能和 prot 参数有冲突。
+    - offset：偏移量，一般不用。必须指定的是4k的整数倍，0表示不偏移。
+
+  返回值：
+    - 调用成功，返回内存映射区首地址；调用失败，返回宏MAP_FAILED（(void *) -1）。
+
+  作用：
+    - 将磁盘文件映射到内存中。
+
+int munmap(void *addr, size_t length);
+  参数：
+    - addr：要释放的内存的首地址
+    - length：要释放的内存的大小
+
+  返回值：
+    - 调用成功，返回 0；调用失败，返回 -1，并设置 errno。
+
+  作用：
+    - 释放内存映射。
+*/
+
+/*
+内存映射实现进程间通信：
+  1. 亲缘关系的进程（e.g. 父子进程）
+    - 父进程先创建内存映射区
+    - 然后创建子进程
+    - 实现父子进程共享创建的内存映射区
+*/
+
+#include <stdio.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+#include <string.h>
+#include <stdlib.h>
+#include <wait.h>
+
+int main()
+{
+  // 获取硬盘文件的文件描述符和长度
+  int fd = open("text.txt", O_RDWR);
+  if(fd == -1)
+  {
+    perror("open");
+    exit(0);
+  }
+  int size = lseek(fd, 0, SEEK_END);
+  printf("size: %d\n", size);
 
 
+  // 创建内存映射区
+  void * ptr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  if(ptr == MAP_FAILED)
+  {
+    perror("mmap");
+    exit(0);
+  }
 
+  // 创建子进程
+  pid_t pid = fork();
+  if(pid > 0)
+  {
+    // parent
+    wait(NULL);   // 等待子进程结束
+    char buf[64] = {0};   // 这种形式只能将数组初始化为0，不能初始化为其他值
+    strcpy(buf, ptr);   // strcpy 遇到 '\0' 就停止复制（认为字符串已经结束），并且复制 '\0' 
+    // printf("data in mem: %s\n", buf);
 
+    printf("data in mem: ");
+    char * b= (char*)ptr;
+    for(int i = 0; i < 64; i++)
+      printf("%c", b[i]);
+    printf("\n");
+  }
+  else if(pid == 0)
+  {
+    // child
+    // 修改内存映射区内容
+    strcpy(ptr, "message from the child!");  // 会复制上'\0'
+  }
+  else
+  {
+    perror("fork");
+    exit(0);
+  }
 
+  // 释放映射
+  munmap(ptr, size);
+  return 0;
+}
+```
 
-
-
-
-
-
-
-
+<img src="./assets/image-20231110195432167.png" alt="image-20231110195432167" style="zoom:80%;" />
 
 
 
@@ -3660,3 +4167,61 @@ printf 是一个行缓冲函数，先将数据放到缓冲区中，满足一定�
 ## 2. bzero  清零内存（已弃用，用 memset 代替）
 
 bzero() 函数用于将一段内存区域清零，即将这段内存区域中的所有字节都设置为0。
+
+
+
+## 3. sprintf
+
+## 4. fgets
+
+从指定的文件流中读取一行字符串，并存储到指定的字符数组中。
+
+**会读取换行符。**
+
+头文件：
+
+```c
+#include <stdio.h>
+```
+
+```c
+char *fgets(char *s, int size, FILE *stream);
+/*
+  参数：
+    - s: 存储读取到的字符串；
+    - size：能读取的最大长度，一般写 s 的大小；
+    - stream：读取的文件流，fopen 打开；
+    
+    返回值：
+      - 调用成功，返回字符串 s；调用失败或者没有读取到数据，返回 NULL。
+  
+  作用：
+    - 从文件流中读取一行字符串（至少 1 个，最多 size 个）存储到 s 中。
+    - 遇到 '\n' 或 EOF 停止读取。
+*/
+```
+
+## 4. `strcpy(str1, str2)`
+
+```c
+char *strcpy(char *dest, const char *src);
+/*
+参数：
+  - dest：目标字符串数组的指针，它指向要存储复制内容的内存空间。（大小应当要足够容纳要复制内容和终止符）
+  - src：源字符串的指针，它指向要复制的字符串。
+  
+返回值：
+  - 返回 dest
+*/
+```
+
+**注意：**
+
+- `strcpy` 在遇到 `str2` 中的 `'\0'` 时，认为字符串结束，复制也就结束了。
+- `strcpy` 会复制 `'\0'`。
+
+## 5. 数组初始化 - `char buf[1024] = {0}`
+
+- `char buf[1024] = {0}` ：只能将数组初始化为 $0$ ，不能初始化为其他值。
+
+- `char buf[1024] = {1}`：在 C99 标准下只能初始化 `buf[0] = 1`。
