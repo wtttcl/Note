@@ -1,3 +1,5 @@
+
+
 # gcc
 
 GCC 原名 GNU C 语言编译器（GNU C Compiler），只能处理 C 语言。但其很快扩展，变得可处理 C++，后来又扩展为能够支持更多编程语言，如 Pascal、Objective -C、Java、Go 以及各类处理器架构上的汇编语言等，所以改名 GNU 编译器套件（GNU Compiler Collection）。
@@ -3926,6 +3928,7 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
 
   返回值：
     - 调用成功，返回内存映射区首地址；调用失败，返回宏MAP_FAILED（(void *) -1）。
+    - void * 是一种通用的指针类型，他可以指向任何类型的数据。在使用时，最好人为地将返回值显式转换为特定类型的指针。
 
   作用：
     - 将磁盘文件映射到内存中。
@@ -3953,7 +3956,27 @@ int munmap(void *addr, size_t length);
 
 
 
-举个例子：
+### mmap 和 munmap 的注意点
+
+- `mmap` 函数返回的指针 `ptr` 可以执行 `ptr++` 操作，但是 `munmap` 函数接收的地址仍旧应该是原来的 `ptr`，所以如果要对 `ptr` 进行操作，就需要保存 `ptr` 原来的值。不建议进行这样的操作。
+- 调用 `mmap` 时，`prot` 指定的对内存映射区的操作权限必须与 `open` 函数保持一致，否则会报错，返回 `MAP_FAILED`。
+- mmap 函数的偏移量必须是 4K 的整数倍，否则报错，返回`MAP_FAILED`。
+- mmap 中的 fd，可以是 open 函数创建的新文件，但是该文件长度不能为 0，可以调用 lseek 函数或 truncate 函数扩展文件长度。
+- ==在调用 mmap 函数后，如果关闭文件描述符，对 mmap 的映射不会产生影响，也就是说，映射仍然存在。==
+- 当 mmap 指定的内存映射区大小较小时，内核实际上会分配一页内存实现映射，页的大小有内核决定。
+- ptr 不能越界，否则返回段错误。
+- mmap 调用失败的原因：
+  - length = 0；
+  - prot 只指定了写权限，没有读权限；
+  - prot 与 open 权限不一致；
+
+
+
+
+
+==open RDWR prot read？==
+
+### 利用内存映射实现有亲缘关系的进程间通信
 
 ```c
 /*
@@ -4069,7 +4092,451 @@ int main()
 
 
 
+### 利用内存映射实现文件拷贝
 
+
+
+# 信号
+
+## 1. 信号的概念
+
+- **信号** 是 linux 进程间通信的最古老的方式之一，是 **事件发生时对进程的通知机制**，有时也称为 **软件中断**。信号是在软件层次上对中断机制的一种模拟，是一种 **异步通信** 的方式。
+
+- 信号可以使一个正在运行的进程被另一个正在运行的异步进程中断，转而处理某一个突发事件。
+
+- 发往进程的信号通常是源于内核。
+
+  - 对于前台进程（用户当前正在与之交互的进程），用户可以输入特殊的终端字符来给进程发送信号；
+  - 当硬件发生异常时，即硬件检测到一个错误条件时，会通知内核，然后内核发送相应的信号给相关进程。e.g. 除 0。
+  - 系统状态变化时内核也会发送信号。e.g. alarm 定时器到期时会引发 SIGALRM 信号；进程执行的 CPU 时间超限；进程的某个子进程退出。
+  - 执行 `kill` 命令或调用 `kill` 函数发送信号。
+
+- 使用信号的目的：
+
+  - 通知进程发生了某特定事件；
+  - 强迫进程执行他代码中的信号处理程序。
+
+- 信号的特点：
+
+  - 简单
+  - 携带信息少，不能携带大量信息
+  - 满足某个特定条件才能发送
+  - 优先级较高
+
+- 查看系统定义的信号列表（前 31 个位常规信号，其余为实时信号/预定义信号）：`kill -l`
+
+  <img src="./assets/image-20231112141622922.png" alt="image-20231112141622922" style="zoom:80%;" />
+
+## 2. 常见的信号
+
+**==ATTENTION：`SIGKILL` 和 `SIGSTOP` 信号不能被捕捉、阻塞或者忽略，只能执行默认动作。==**
+
+<img src="./assets/image-20231112141844465.png" alt="image-20231112141844465" style="zoom:80%;" />
+
+- `SIGINT`：`<Ctrl +C>`。用户终端向前台进程发出信号，终止进程。
+- `SIGQUIT`：`<Ctrl + \>`。用户终端向前台进程发出信号，终止进程。
+
+<img src="./assets/image-20231112141920288.png" alt="image-20231112141920288" style="zoom:80%;" />
+
+- `SIGKILL`：无条件终止任何进程（除僵尸进程外）。**该信号不能被忽略、处理和阻塞。**
+- `SIGSEGV`：只是进程进行了无效内存访问（段错误）。终止进程并产生 `core` 文件（记录进程异常信息）。
+- `SIGPIPE`：向一个没有读端的管道写数据。终止进程。
+
+<img src="./assets/image-20231112141949098.png" alt="image-20231112141949098" style="zoom:80%;" />
+
+- `SIGCHID`：子进程退出时，父进程会接收到这个信号。忽略这个信号。
+- `SIGCONT`：若进程已经停止，则使其继续运行。进程继续或忽略这个信号。
+- `SIGSTOP`：停止进程执行。**该信号不能被忽略、处理和阻塞。**
+
+<img src="./assets/image-20231112142003061.png" alt="image-20231112142003061" style="zoom:80%;" />
+
+## 3. 信号的默认处理动作和状态（命令 `man 7 signal` 可查询文档）
+
+### a. 信号的 5 种默认处理动作
+
+- Term：终止进程。
+
+- Ign：当前进程忽略该信号。e.g. 子进程执行退出，父进程接收到 `SIGCHLD` 信号，执行 Ign 动作。
+
+- Stop：赞同当前进程。
+
+- Cont：继续执行当前被暂停的进程。
+
+- Core：终止进程，并生成一个 `core` 文件（保存进程异常退出的错误信息）。
+
+  - 首先执行 `ulimit -c 1024` 命令开启 `core` 文件的存储;
+
+    <img src="./assets/image-20231112150506904.png" alt="image-20231112150506904" style="zoom:80%;" />
+
+  - 然后执行段错误的代码：
+
+    ```c
+    #include <stdio.h>
+    #include <string.h>
+    
+    int main()
+    {
+        char * buf;
+        strcpy(buf, "hello world");
+        return 0;
+    }
+    ```
+
+  - 执行程序发现没有产生 `core` 文件，关闭 ubuntu 错误收集系统，再次执行程序，发现 `core` 文件产生。
+
+    <img src="./assets/image-20231112150949020.png" alt="image-20231112150949020" style="zoom:80%;" />
+
+    <img src="./assets/image-20231112151015687.png" alt="image-20231112151015687" style="zoom:80%;" />
+
+  - 执行 `gdb cc` 命令进入调试状态，再执行 `core-file core` 命令，可以看到程序接收到了 `SIGSEGV` 信号导致进程终止。
+
+    <img src="./assets/image-20231112151629309.png" alt="image-20231112151629309" style="zoom:80%;" />
+
+### b. 信号的状态
+
+- 产生
+- 未决（还没有到达要通知的进程）
+- 递达
+
+## 4. 信号的相关函数
+
+### a. `kill` / `raise` / `abort`
+
+#### i). `kill`
+
+**头文件：**
+
+```c
+#include <sys/types.h>
+#include <signal.h>
+```
+
+```c
+int kill(pid_t pid, int sig);
+/*
+  参数：
+    - pid：要发送信号的进程号。
+      - pid > 0：向进程号为 pid 的进程发送信号。
+      - pid = 0：向和当前进程同组的所有进程发送信号。
+      - pid = -1：向所有可以接收该信号的进程发送信号（init 除外）。
+      - pid < -1：向进程组为 |pid| 的所有进程发送信号。
+    - sig：要发送的信号（一般取宏）。
+
+  返回值：
+    - 调用成功，返回 0；调用失败，返回 -1，并设置 errno。
+
+  作用：
+    - 向指定进程发送指定信号。
+    - 杀死当前进程：kill(getpid(), 9)
+    - 杀死父进程：kill(getppid(), 9)
+*/
+```
+
+
+
+#### ii). `raise`
+
+**头文件：**
+
+```c
+#include <signal.h>
+```
+
+```c
+int raise(int sig);
+/*
+  参数：
+    - sig：要发送的信号（一般取宏）。
+
+  返回值：
+    - 调用成功，返回 0；调用失败，返回非零值。
+
+  作用：
+    - 向当前进程发送指定信号。等价于 kill(getpid(), sig)
+*/
+```
+
+
+
+#### iii). `abort`
+
+**头文件：**
+
+```c
+#include <stdlib.h>
+```
+
+```c
+void abort(void);
+/*
+  参数：
+    - void
+
+  返回值：
+    - 没有返回值。
+
+  作用：
+    - 向当前进程发送信号 SIGABRT。等价于 kill(getpid(), SIGABRT)
+*/
+```
+
+
+
+#### iv). 举个例子 - 父进程调用 `kill` 函数杀死子进程
+
+```c
+/*
+#include <sys/types.h>
+#include <signal.h>
+
+int kill(pid_t pid, int sig);
+  参数：
+    - pid：要发送信号的进程号。
+      - pid > 0：向进程号为 pid 的进程发送信号。
+      - pid = 0：向和当前进程同组的所有进程发送信号。
+      - pid = -1：向所有可以接收该信号的进程发送信号（init 除外）。
+      - pid < -1：向进程组为 |pid| 的所有进程发送信号。
+    - sig：要发送的信号（一般取宏）。
+
+  返回值：
+    - 调用成功，返回 0；调用失败，返回 -1，并设置 errno。
+
+  作用：
+    - 向指定进程发送指定信号。
+    - 杀死当前进程：kill(getpid(), 9)
+    - 杀死父进程：kill(getppid(), 9)
+
+
+
+#include <signal.h>
+
+int raise(int sig);
+  参数：
+    - sig：要发送的信号（一般取宏）。
+
+  返回值：
+    - 调用成功，返回 0；调用失败，返回非零值。
+
+  作用：
+    - 向当前进程发送指定信号。等价于 kill(getpid(), sig)
+
+
+#include <stdlib.h>
+
+void abort(void);
+  参数：
+    - void
+
+  返回值：
+    - 没有返回值。
+
+  作用：
+    - 向当前进程发送信号 SIGABRT。等价于 kill(getpid(), SIGABRT)
+
+*/
+
+#include <sys/types.h>
+#include <signal.h>
+#include <unistd.h>
+#include <stdio.h>
+
+int main()
+{
+    pid_t pid = fork();
+    if(pid > 0)
+    {
+        // parent
+        sleep(2);
+        printf("Parent kills its child\n");
+        kill(pid, SIGINT);  // kill child
+    }
+    else if(pid == 0)
+    {
+        // child
+        while(1)
+        {
+            printf("Child still alive!\n");
+            sleep(1);
+        }
+    }
+
+    return 0;
+}
+
+```
+
+运行结果：
+
+<img src="./assets/image-20231112154236532.png" alt="image-20231112154236532" style="zoom:90%;" />
+
+### b. `alarm`
+
+#### i). 头文件
+
+```c
+#include <unistd.h>
+```
+
+#### ii). 函数体
+
+```c
+unsigned int alarm(unsigned int seconds);
+/*
+  参数：
+    - seconds：倒计时的时长（秒）。若secconds = 0，则取消设置的定时器或定时器无效。
+
+  返回值：
+    - 若之前设置了定时器，返回前一个定时器剩余的时间；若之前没有设置定时器，返回 0。
+
+  功能：
+    - 设置定时器。当定时器倒计时结束时，alarm 函数会给当前进程发送一个 SIGALARM 信号。
+    - SIGALARM ：默认终止当前的进程。
+    - 每一个进程都有且只有唯一的一个定时器。以最后设置的定时器为准。
+    - 定时器遵从自然定时法，是不阻塞的，也就是说，即便当前进程阻塞，定时器仍然在倒计时。
+    - 取消设置的定时器：alarm(0);
+*/
+```
+
+#### iii). 举个例子
+
+```c
+/*
+#include <unistd.h>
+
+unsigned int alarm(unsigned int seconds);
+  参数：
+    - seconds：倒计时的时长（秒）。若secconds = 0，则取消设置的定时器或定时器无效。
+
+  返回值：
+    - 若之前设置了定时器，返回前一个定时器剩余的时间；若之前没有设置定时器，返回 0。
+
+  功能：
+    - 设置定时器。当定时器倒计时结束时，alarm 函数会给当前进程发送一个 SIGALARM 信号。
+    - SIGALARM ：默认终止当前的进程。
+    - 每一个进程都有且只有唯一的一个定时器。以最后设置的定时器为准。
+    - 定时器遵从自然定时法，是不阻塞的，也就是说，即便当前进程阻塞，定时器仍然在倒计时。
+	- 取消设置的定时器：alarm(0);
+*/
+
+#include <unistd.h>
+#include <stdio.h>
+
+int main()
+{
+    int ret = alarm(5);
+    printf("ret = %d\n", ret);
+    sleep(3);
+    ret = alarm(6);
+    printf("ret = %d\n", ret);
+    int i = 1;
+    while(1)
+    {
+        printf("%d\n", i);
+        sleep(1);
+    }
+    return 0;
+}
+```
+
+运行结果：
+
+<img src="./assets/image-20231112160441518.png" alt="image-20231112160441518" style="zoom:80%;" />
+
+#### iv). 举个例子 - 计算机 1 秒可以数多少数
+
+```c
+#include <unistd.h>
+#include <stdio.h>
+
+int main()
+{
+    int ret = alarm(1);
+    int i = 1;
+    while(1)
+    {
+        printf("%d\n", i++);
+    }
+    return 0;
+}
+```
+
+运行结果：
+
+若带上 `printf`，共数93114个数；若重定向到文件里（即去掉 I/O 调用， `./alarm >> a.txt`），共数12223680个数。
+
+### c. `setitimer`
+
+#### i). 头文件
+
+```c
+#include <sys/time.h>
+```
+
+#### ii). 函数体
+
+```c
+int setitimer(int which, const struct itimerval *new_value, struct itimerval *old_value);
+/*
+    参数：
+    - which：决定定时器以什么时间计时
+      - ITIMER_REAL：真实时间，时间到达，发送 SIGALRM。（常用）
+      - ITIMER_VIRTUAL：用户时间，时间到达，发送 SIGVTALRM。
+      - ITIMER_PROF：以该进程在用户态和内核态下所消耗的时间来计算，时间到达，发送 SIGPROF。
+    - new_value：设置定时器的属性
+        - struct itimerval {    // 定时器的结构体
+            struct timeval it_interval;     // 时间间隔
+            struct timeval it_value;    // 延长多少时间开启定时器
+          };
+
+        - struct timeval {  // 时间的结构体
+            time_t      tv_sec;     // 秒
+            suseconds_t tv_usec;    // 微秒
+          };
+
+    - old_value：记录上一次的定时的时间参数，一般不使用，指定NULL。
+
+  返回值：
+    - 调用成功，返回 0；调用失败，返回 -1，并设置 errno。
+
+  作用：
+    - 设置定时器，可周期性定时，时间精确到微秒。
+*/
+```
+
+#### iii). 举个例子
+
+```c
+#include <sys/time.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+int main()
+{
+    struct itimerval new_val;
+    
+    // interval
+    new_val.it_interval.tv_sec = 2;     // s
+    new_val.it_interval.tv_usec = 0;    // us
+
+    // init layback
+    new_val.it_value.tv_sec = 3;
+    new_val.it_value.tv_usec = 0;
+
+    // 3s 后定时器开始倒计时，每次倒计时时间为2s
+    int ret = setitimer(ITIMER_REAL, &new_val, NULL);   // 非阻塞执行
+
+    if(ret == -1) {
+        perror("setitimer");
+        exit(0);
+    }
+
+    printf("timer start...\n");
+
+    getchar();
+
+    return 0;
+}
+```
 
 
 
@@ -4154,15 +4621,17 @@ hello, dup2nihao
 
 ## 1. printf() 缓冲区刷新
 
-printf 是一个行缓冲函数，先将数据放到缓冲区中，满足一定条件才会将缓冲区中的内容输出到标准输出。
+`printf` 是一个行缓冲函数，先将数据放到缓冲区中，满足一定条件才会将缓冲区中的内容输出到标准输出。
 
 刷新缓冲区的条件：
 
 - 缓冲区写满
-- 遇到 '\n'，'\r'
-- 调用 fflush 手动刷新缓冲区
-- 调用 scanf 从缓冲区中读取数据
+- 遇到 `'\n'`，`'\r'`
+- 调用 `fflush` 手动刷新缓冲区
+- 调用 `scanf` 从缓冲区中读取数据
 - 程序结束
+
+
 
 ## 2. bzero  清零内存（已弃用，用 memset 代替）
 
@@ -4170,7 +4639,26 @@ bzero() 函数用于将一段内存区域清零，即将这段内存区域中的
 
 
 
-## 3. sprintf
+## 3. 打印到字符数组/字符串 - `sprintf(buf, "xxx %d", aug)`
+
+头文件：`stdio.h`
+
+```c
+int sprintf(char *str, const char *format, ...);
+/*
+  参数：
+    - str：打印到的字符数组
+    - format：格式化后的字符串
+    
+  返回值：
+    - 调用成功，返回打印的字符数；调用失败，返回一个小于 0 的数。
+    
+  功能：
+    - 将格式化后的输出打印到字符数组/字符串中。
+*/
+```
+
+
 
 ## 4. fgets
 
@@ -4201,7 +4689,11 @@ char *fgets(char *s, int size, FILE *stream);
 */
 ```
 
-## 4. `strcpy(str1, str2)`
+
+
+## 4. 字符串拷贝 - `strcpy(str1, str2)`
+
+**头文件：**`<string.h>`
 
 ```c
 char *strcpy(char *dest, const char *src);
@@ -4220,8 +4712,15 @@ char *strcpy(char *dest, const char *src);
 - `strcpy` 在遇到 `str2` 中的 `'\0'` 时，认为字符串结束，复制也就结束了。
 - `strcpy` 会复制 `'\0'`。
 
+
+
 ## 5. 数组初始化 - `char buf[1024] = {0}`
 
 - `char buf[1024] = {0}` ：只能将数组初始化为 $0$ ，不能初始化为其他值。
 
 - `char buf[1024] = {1}`：在 C99 标准下只能初始化 `buf[0] = 1`。
+
+
+
+## 6. getchar
+
