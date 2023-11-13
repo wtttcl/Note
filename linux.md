@@ -4499,7 +4499,7 @@ int setitimer(int which, const struct itimerval *new_value, struct itimerval *ol
     - 调用成功，返回 0；调用失败，返回 -1，并设置 errno。
 
   作用：
-    - 设置定时器，可周期性定时，时间精确到微秒。
+    - 设置定时器，可周期性定时（需要和信号捕捉函数一起使用），时间精确到微秒。
 */
 ```
 
@@ -4532,19 +4532,263 @@ int main()
 
     printf("timer start...\n");
 
-    getchar();
+    getchar();  // 仅仅是为了阻塞进程，没有别的作用
 
     return 0;
 }
 ```
 
+### d. 信号捕捉函数 `signal` 
+
+#### i). 头文件
+
+```c
+#include <signal.h>
+```
+
+#### ii). 函数体
+
+```c
+sighandler_t signal(int signum, sighandler_t handler);
+/*
+  参数：
+    - signum：要捕捉的信号，一般用宏表示。
+    - handler：要执行的动作。
+      - SIG_IGN：忽略信号；
+      - SIG_DFL：执行默认动作；
+      - 回调函数：内核调用。自己的回调函数一般在程序开头注册。函数格式：typedef void (*sighandler_t)(int);
+
+  返回值：
+    - 调用成功，返回上一次调用的回调函数地址（第一次调用返回 NULL）；调用失败，返回 SIG_ERR，并设置 errno。
+
+  作用：
+    - 捕捉指定信号，并执行指定动作。
+    - SIGKILL SIGSTOP不能被捕捉，不能被忽略。（否则进程无法被强制结束）
+*/
+```
+
+#### iii). 举个例子
+
+```c
+#include <sys/time.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <signal.h>
+
+// typedef void (*sighandler_t)(int);
+void myAlarm(int num)
+{
+    printf("caught signal %d\n", num);
+    printf("xixixixixixi\n");
+}
+
+int main()
+{   
+    // 注册信号捕捉函数
+    // signal(SIGALRM, SIG_IGN); 	// 忽略信号
+    // signal(SIGALRM, SIG_DFL); 	// 执行默认动作
+    signal(SIGALRM, myAlarm); 	// 执行自己写的回调函数
+    struct itimerval new_val;
+    
+    // interval
+    new_val.it_interval.tv_sec = 2;     // s
+    new_val.it_interval.tv_usec = 0;    // us
+
+    // init layback
+    new_val.it_value.tv_sec = 3;
+    new_val.it_value.tv_usec = 0;
+
+    // 3s 后定时器开始倒计时，每次倒计时时间为2s
+    int ret = setitimer(ITIMER_REAL, &new_val, NULL);   // 非阻塞执行
+
+    if(ret == -1) {
+        perror("setitimer");
+        exit(0);
+    }
+
+    printf("timer start...\n");
+
+    getchar();  // 仅仅是为了阻塞进程，没有别的作用
+
+    return 0;
+}
+```
+
+运行结果：
+
+- 忽略信号，进程被 `getchar()` 阻塞：
+
+<img src="./assets/image-20231113150420987.png" alt="image-20231113150420987" style="zoom:80%;" />
+
+- 执行默认动作，`SIGALRM` 默认动作为结束进程。
+
+<img src="./assets/image-20231113150446272.png" alt="image-20231113150446272" style="zoom:80%;" />
+
+- 执行自己写的回调函数：
+
+<img src="./assets/image-20231113150517929.png" alt="image-20231113150517929" style="zoom:80%;" />
+
+## 5. 信号集捕捉函数
+
+### a. 信号集
+
+- 多个信号可以使用一个称为信号集的数据结构来表示，其数据类型为 `sigset_t`。
+- 对于每一个进程，其 PCB 中包含了两个信号集：**阻塞信号集**（为 1 表示阻塞信号被处理， 为 0 表示可以处理该信号）和 **未决信号集**（为 1 表示信号已经发送给进程但还未被处理）。这两个信号集都是由 **位图机制** 来实现的（1位表示一个信号，内核中的信号共62个，用64位来表示所有的信号）。
+- 对于未决信号集中为 1 的信号，首先在阻塞信号集中查看：若阻塞信号集中为 1，则进程阻塞，直到阻塞信号集中变为 0 ；若阻塞信号集中为 0，则进程处理该信号。
+- 操作系统不允许用户直接对两个信号集进行位操作，所以需要自定义一个集合，借助 **信号集操作函数** 来修改 PCB 中的两个信号集。
+
+<img src="./assets/image-20231113153901441.png" alt="image-20231113153901441" style="zoom:80%;" />
+
+### b. 信号集处理函数
+
+#### i). 头文件
+
+```c
+#include <signal.h>
+```
 
 
 
+#### ii). `sigemptyset`
+
+```c
+int sigemptyset(sigset_t *set);
+/*
+  参数：
+    - set：传出参数。需要操作的阻塞信号集。
+
+  返回值：
+    - 调用成功返回 0；调用失败返回 -1。
+
+  作用：
+    - 清空阻塞信号集，将阻塞信号集中的所有的标志位置为 0。
+*/
+```
 
 
 
+#### iii). `sigfillset`
 
+```c
+int sigfillset(sigset_t *set);
+/*
+  参数：
+    - set：传出参数。需要操作的阻塞信号集。
+
+  返回值：
+    - 调用成功返回 0；调用失败返回 -1。
+
+  作用：
+    - 将阻塞信号集中的所有的标志位置为 1。
+*/
+```
+
+
+
+#### iv). `sigaddset`
+
+```c
+int sigaddset(sigset_t *set, int signum);
+/*
+  参数：
+    - set：传出参数。需要操作的阻塞信号集。
+    - signum：需要操作的信号。
+
+  返回值：
+    - 调用成功返回 0；调用失败返回 -1。
+
+  作用：
+    - 设置阻塞信号集中的某一个信号对应的标志位为 1。
+*/
+```
+
+
+
+#### v). `sigdelset`
+
+```c
+int sigdelset(sigset_t *set, int signum);
+/*
+  参数：
+    - set：传出参数。需要操作的阻塞信号集。
+    - signum：需要操作的信号。
+
+  返回值：
+    - 调用成功返回 0；调用失败返回 -1。
+
+  作用：
+    - 设置阻塞信号集中的某一个信号对应的标志位为 0。
+*/
+```
+
+
+
+#### vi). `sigismember`
+
+```c
+int sigismember(const sigset_t *set, int signum);
+/*
+  参数：
+    - set：需要查询的阻塞信号集。
+    - signum：需要查询的信号。
+
+  返回值：
+    - 返回 1：signum 被阻塞；
+    - 返回 0：signum 没有被阻塞；
+    - 返回 -1：调用失败
+
+  作用：
+    - 设查询某个信号是否被阻塞。
+*/
+```
+
+
+
+#### vii). 举个例子
+
+```C
+#include <signal.h>
+#include <stdio.h>
+
+int main()
+{
+    sigset_t set;
+    sigemptyset(&set);  // 清空 set
+
+    int ret = sigismember(&set, SIGINT);
+    if(ret == 0)
+        printf("SIGINT 不阻塞\n");
+    else if(ret == 1)
+        printf("SIGINT 阻塞\n");
+    
+    ret = sigismember(&set, SIGQUIT);
+    if(ret == 0)
+        printf("SIGQUIT 不阻塞\n");
+    else if(ret == 1)
+        printf("SIGQUIT 阻塞\n");
+
+    sigaddset(&set, SIGINT);    // 将 SIGINT 加入阻塞信号集
+    sigaddset(&set, SIGQUIT);    // 将 SIGQUIT 加入阻塞信号集
+    
+    ret = sigismember(&set, SIGINT);
+    if(ret == 0)
+        printf("SIGINT 不阻塞\n");
+    else if(ret == 1)
+        printf("SIGINT 阻塞\n");
+    
+    ret = sigismember(&set, SIGQUIT);
+    if(ret == 0)
+        printf("SIGQUIT 不阻塞\n");
+    else if(ret == 1)
+        printf("SIGQUIT 阻塞\n");
+
+    return 0;
+}
+```
+
+运行结果：
+
+![image-20231113155513065](./assets/image-20231113155513065.png)
 
 
 
