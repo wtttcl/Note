@@ -2379,7 +2379,7 @@ ulimit -a
 
 
 
-### 3. fork
+### 3. `fork`
 
 - 一个现有的进程可以调用 `fork` 函数创建一个新进程，称为子进程。`fork` 函数被调用一次，但**返回两次**，一次返回给子进程，返回值为0，一次返回给父进程，返回值为子进程的进程号。（因为父子进程是一对多的关系，所以子进程返回 0 即可，而父进程需要返回子进程的进程号）。
 - 当该子进程创建时，它和父进程都会 **从 `fork` 调用的下一条（或者说从 `fork` 的返回处）**开始执行继续执行与父进程相同的代码。
@@ -2766,10 +2766,10 @@ int main()
 
 #### b. 僵尸进程（zombie）
 
-僵尸进程：一个已经终止，但是父进程尚未对其进行善后处理（获取子进程的信息，释放子进程占用的资源）的进程被称为僵尸进程。
+**僵尸进程**：一个已经终止，但是父进程尚未对其进行善后处理（通常父进程尚未结束，获取子进程的信息，释放子进程占用的资源）的进程被称为僵尸进程。
 
-- 僵尸进程不能被 `kill -9` 命令杀死。
-- 僵尸进程会一直占用进程号，如果产生大量的僵尸进程，会影响系统创建新的进程。
+- **僵尸进程不能被 `kill -9` 命令杀死。**
+- 僵尸进程会一直 **占用进程号**，如果产生大量的僵尸进程，会影响系统创建新的进程。
 
 
 
@@ -3043,9 +3043,9 @@ pid_t waitpid(pid_t pid, int *wstatus, int options);
 /*
   参数：
     - pid：指定要回收的子进程的进程号
-      - pid > 0：指定要回收的资金后才能
+      - pid > 0：指定要回收的子进程
       - pid = 0：回收当前进程组的任意一个子进程（同一个父进程创建的子进程可以是不同组的）
-      - pid = -1：回收任意一个子进程，wait(-1, &wstatus, 0) = wait(&wstatus)
+      - pid = -1：回收任意一个子进程，waitpid(-1, &wstatus, 0) = wait(&wstatus)
       - pid < -1：回收指定进程组的任意一个子进程，进程组 id = |pid|
     - wstatus：指向进程退出时的状态信息。若非 NULL，则会存储进程状态信息
       - WIFEXITED(status)：非0，进程正常退出；
@@ -4094,6 +4094,71 @@ int main()
 
 ### 利用内存映射实现文件拷贝
 
+。。。
+
+## ==共享内存==
+
+### 1. 概念
+
+- 共享内存允许两个或多个进程共享物理内存的同一块区域（通常称为段）。
+- 与管道等要求 ①发送端进程将数据从用户空间的缓冲区复制到内核内存；②要求接收端进程将数据从内核内存复制到用户空间的缓冲区 相比，这种进程间通信（IPC）的速度更快。
+
+### 2. 共享内存的流程
+
+- 调用 shmget() 创建一个新共享内存段或取得一个既有共享内存段的标识符（即由其 他进程创建的共享内存段）。这个调用将返回后续调用中需要用到的共享内存标识符。
+- 使用 shmat() 来附上共享内存段，即使该段成为调用进程的虚拟内存的一部分。
+- 此刻在程序中可以像对待其他可用内存那样对待这个共享内存段。为引用这块共享内存， 程序需要使用由 shmat() 调用返回的 addr 值，它是一个指向进程的虚拟地址空间 中该共享内存段的起点的指针。
+- 调用 shmdt() 来分离共享内存段。在这个调用之后，进程就无法再引用这块共享内存 了。这一步是可选的，并且在进程终止时会自动完成这一步。
+- 调用 shmctl() 来删除共享内存段。只有当当前所有附加内存段的进程都与之分离之 后内存段才会销毁。只有一个进程需要执行这一步。
+
+### 3. 共享内存操作函数
+
+#### a. 头文件
+
+```c
+#include <sys/ipc.h>
+#include <sys/shm.h>
+```
+
+
+
+#### b. `shmget`
+
+```c
+int shmget(key_t key, size_t size, int shmflg);
+/*
+  参数：
+    - key：
+    - size：
+    - shmflg：
+      - IPC_CREAT
+      - IPC_EXCL
+      - SHM
+  返回值：
+    - 调用成功，返回共享内存的引用 ID；调用失败，返回 -1，并设置 errno。
+
+  作用：
+    - 创建一个新的共享内存段，或者获取一个既有的共享内存段的标识。
+    - 新创建的内存段中的数据会被初始化为 0。
+*/
+```
+
+
+
+#### c. `shmat`
+
+
+
+#### d. `shmdt`
+
+
+
+#### e. `shmctl`
+
+
+
+#### f. `ftok`
+
 
 
 # 信号
@@ -4538,7 +4603,7 @@ int main()
 }
 ```
 
-### d. 信号捕捉函数 `signal` 
+### d. 信号捕捉函数 `signal` (ANSI 标准，少用)
 
 #### i). 头文件
 
@@ -4628,18 +4693,18 @@ int main()
 
 <img src="./assets/image-20231113150517929.png" alt="image-20231113150517929" style="zoom:80%;" />
 
-## 5. 信号集捕捉函数
+## 5. 信号集及相关函数
 
 ### a. 信号集
 
 - 多个信号可以使用一个称为信号集的数据结构来表示，其数据类型为 `sigset_t`。
-- 对于每一个进程，其 PCB 中包含了两个信号集：**阻塞信号集**（为 1 表示阻塞信号被处理， 为 0 表示可以处理该信号）和 **未决信号集**（为 1 表示信号已经发送给进程但还未被处理）。这两个信号集都是由 **位图机制** 来实现的（1位表示一个信号，内核中的信号共62个，用64位来表示所有的信号）。
-- 对于未决信号集中为 1 的信号，首先在阻塞信号集中查看：若阻塞信号集中为 1，则进程阻塞，直到阻塞信号集中变为 0 ；若阻塞信号集中为 0，则进程处理该信号。
-- 操作系统不允许用户直接对两个信号集进行位操作，所以需要自定义一个集合，借助 **信号集操作函数** 来修改 PCB 中的两个信号集。
+- 对于每一个进程，其 PCB 中包含了两个信号集：**阻塞信号集**（为 1 表示阻塞信号的处理（仅阻塞进程对接收的信号操作，而不阻塞进程）， 为 0 表示可以处理该信号）和 **未决信号集**（为 1 表示信号已经发送给进程但还未被处理）。这两个信号集都是由 **位图机制** 来实现的（1位表示一个信号，内核中的信号共62个，用64位来表示所有的信号）。
+- **对于未决信号集中为 1 的信号，首先在阻塞信号集中查看：若阻塞信号集中为 1，则进程不处理信号，直到阻塞信号集中变为 0 ；若阻塞信号集中为 0，则进程处理该信号。**
+- 操作系统不允许用户直接对两个信号集进行位操作，所以需要自定义一个集合，借助 **信号集操作函数** 来修改 PCB 中的阻塞信号集。
 
 <img src="./assets/image-20231113153901441.png" alt="image-20231113153901441" style="zoom:80%;" />
 
-### b. 信号集处理函数
+### b. 阻塞信号集生成函数
 
 #### i). 头文件
 
@@ -4655,7 +4720,7 @@ int main()
 int sigemptyset(sigset_t *set);
 /*
   参数：
-    - set：传出参数。需要操作的阻塞信号集。
+    - set：传出参数。需要操作的阻塞信号集。（sigset_t 本质上是一个 long 类型的数，位图存储每个信号）
 
   返回值：
     - 调用成功返回 0；调用失败返回 -1。
@@ -4673,7 +4738,7 @@ int sigemptyset(sigset_t *set);
 int sigfillset(sigset_t *set);
 /*
   参数：
-    - set：传出参数。需要操作的阻塞信号集。
+    - set：传出参数。需要操作的阻塞信号集。（sigset_t 本质上是一个 long 类型的数，位图存储每个信号）
 
   返回值：
     - 调用成功返回 0；调用失败返回 -1。
@@ -4691,7 +4756,7 @@ int sigfillset(sigset_t *set);
 int sigaddset(sigset_t *set, int signum);
 /*
   参数：
-    - set：传出参数。需要操作的阻塞信号集。
+    - set：传出参数。需要操作的阻塞信号集。（sigset_t 本质上是一个 long 类型的数，位图存储每个信号）
     - signum：需要操作的信号。
 
   返回值：
@@ -4710,7 +4775,7 @@ int sigaddset(sigset_t *set, int signum);
 int sigdelset(sigset_t *set, int signum);
 /*
   参数：
-    - set：传出参数。需要操作的阻塞信号集。
+    - set：传出参数。需要操作的阻塞信号集。（sigset_t 本质上是一个 long 类型的数，位图存储每个信号）
     - signum：需要操作的信号。
 
   返回值：
@@ -4729,7 +4794,7 @@ int sigdelset(sigset_t *set, int signum);
 int sigismember(const sigset_t *set, int signum);
 /*
   参数：
-    - set：需要查询的阻塞信号集。
+    - set：需要查询的阻塞信号集。（sigset_t 本质上是一个 long 类型的数，位图存储每个信号）
     - signum：需要查询的信号。
 
   返回值：
@@ -4755,13 +4820,13 @@ int main()
     sigset_t set;
     sigemptyset(&set);  // 清空 set
 
-    int ret = sigismember(&set, SIGINT);
+    int ret = sigismember(&set, SIGINT); 	// 查询阻塞信号集 set 中 SIGINT 对应的值
     if(ret == 0)
         printf("SIGINT 不阻塞\n");
     else if(ret == 1)
         printf("SIGINT 阻塞\n");
     
-    ret = sigismember(&set, SIGQUIT);
+    ret = sigismember(&set, SIGQUIT); 	// 查询阻塞信号集 set 中 SIGQUIT 对应的值
     if(ret == 0)
         printf("SIGQUIT 不阻塞\n");
     else if(ret == 1)
@@ -4770,13 +4835,13 @@ int main()
     sigaddset(&set, SIGINT);    // 将 SIGINT 加入阻塞信号集
     sigaddset(&set, SIGQUIT);    // 将 SIGQUIT 加入阻塞信号集
     
-    ret = sigismember(&set, SIGINT);
+    ret = sigismember(&set, SIGINT); 	// 查询阻塞信号集 set 中 SIGINT 对应的值
     if(ret == 0)
         printf("SIGINT 不阻塞\n");
     else if(ret == 1)
         printf("SIGINT 阻塞\n");
     
-    ret = sigismember(&set, SIGQUIT);
+    ret = sigismember(&set, SIGQUIT); 	// 查询阻塞信号集 set 中 SIGQUIT 对应的值
     if(ret == 0)
         printf("SIGQUIT 不阻塞\n");
     else if(ret == 1)
@@ -4792,15 +4857,376 @@ int main()
 
 
 
+### c. 信号集处理函数
+
+#### i). 头文件
+
+```c
+#include <signal.h>
+```
 
 
 
+#### ii). `sigprocmask`
+
+```c
+int sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
+/*
+  参数：
+    - how：如何处理内核阻塞信号集
+      - SIG_BLOCK：将用户设置的阻塞信号集里为 1 的信号添加到内核阻塞信号集。
+      - SIG_UNBLOCK：将用户设置的阻塞信号集里为 1 的信号从内核阻塞信号集中删除。
+      - SIG_SETMASK：用用户设置的阻塞信号集覆盖内核阻塞信号集。
+    - set：用户设置的阻塞信号集。（sigset_t 本质上是一个 long 类型的数，位图存储每个信号）
+    - oldset：传出参数。若非 NULL，则为修改之前内核中的阻塞信号集。不使用则传递 NULL。
+
+  返回值：
+    - 调用成功，返回 0； 调用失败，返回 -1，并设置 errno。
+
+  作用：
+    - 根据用户设置的阻塞信号集，修改内核中的阻塞信号集。
+*/
+```
 
 
 
+#### iii). `sigpending`
+
+```c
+int sigpending(sigset_t *set);
+/*
+  参数：
+    - set：传出参数，获取内核中未决信号集。（sigset_t 本质上是一个 long 类型的数，位图存储每个信号）
+
+  返回值：
+    - 调用成功，返回 0； 调用失败，返回 -1，并设置 errno。
+
+  作用：
+    - 获取内核中的未决信号集。
+*/
+```
 
 
 
+#### iv).  举个例子
+
+```c
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+// #include <unistd.h> 	// sleep
+
+int main()
+{
+    // 初始化用户设置的阻塞信号集
+    sigset_t set;
+    sigemptyset(&set);
+
+    // 增加阻塞信号
+    sigaddset(&set, SIGINT);
+    sigaddset(&set, SIGQUIT);
+
+    // 更新内核的阻塞信号集
+    int ret = sigprocmask(SIG_BLOCK, &set, NULL);
+    if(ret == -1)
+    {
+        perror("sigprocmask");
+        exit(0);
+    }
+
+    int cnt = 0;
+    while(1)
+    {
+        sigset_t pending_set;
+        sigemptyset(&pending_set);
+        sigpending(&pending_set);   // 获取内核的未决信号集
+
+        // 查询 1 - 31 信号
+        for(int i = 1; i <= 31; i++)
+        {
+            printf("%d", sigismember(&pending_set, i));
+        }
+        printf("\n");   // 刷新缓冲区，否则只有在程序退出后才会有输出
+        sleep(1);
+        cnt++;
+        if(cnt == 10)   // 将之前阻塞的信号解开阻塞，进而使进程处理信号，在这里的效果就是终止进程
+        {
+            sigprocmask(SIG_UNBLOCK, &set, NULL);
+        }
+    }
+
+    return 0;
+}
+```
+
+运行结果：
+
+这里 warning 是因为没有添加 sleep 的头文件 `<unistd.h>`。
+
+![image-20231114202238463](./assets/image-20231114202238463.png)
+
+### d. 信号捕捉函数 `sigaction` （POSIX 标准，常用）
+
+#### i). 头文件
+
+```c
+#include <signal.h>
+```
+
+
+
+#### ii). 函数体
+
+```c
+int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact);
+/*
+  参数：
+    - signum：要捕捉的信号或宏。
+    - act：捕捉信号后的处理动作。
+    - oldact：调用之前对该信号的处理动作，一般不使用，传入 NULL。
+
+  返回值：
+    - 调用成功，返回 0；调用失败，返回 -1，并设置 errno。
+
+  作用：
+    - 信号捕捉。改变信号捕捉后的处理动作。
+*/
+```
+
+#### iii). `struct sigaction`
+
+```c
+struct sigaction {
+    void     (*sa_handler)(int);    // 指针函数，表示捕捉信号后的处理动作
+    void     (*sa_sigaction)(int, siginfo_t *, void *);     // 不常用
+    sigset_t   sa_mask;     // 临时阻塞信号集，在 sigaction 函数执行过程中，临时阻塞某些信号。
+    int        sa_flags;    //若为 0，表示用 sa_handler 进行信号处理动作；若为 SA_SIGINFO，表示用 sa_sigaction 进行信号处理动作。
+    void     (*sa_restorer)(void);  // 已废弃
+};
+```
+
+
+
+#### iv). 举个例子
+
+```c
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/time.h>   // setitimer 头文件
+
+void myAlarm(int num)
+{
+    printf("Caught signal %d\n", num);
+    printf("xixixixixi\n");
+    return;
+}
+int main()
+{   
+    // 注册信号捕捉函数
+    struct sigaction my_sigaction;
+    my_sigaction.sa_flags = 0;
+    my_sigaction.sa_handler = myAlarm;
+    sigemptyset(&my_sigaction.sa_mask);     // 临时清空阻塞信号集
+    sigaction(SIGALRM, &my_sigaction, NULL);
+
+
+    struct itimerval new_value;
+
+    // 设置开始的延时
+    new_value.it_value.tv_sec = 3;
+    new_value.it_value.tv_usec = 0;
+
+    // 设置间隔
+    new_value.it_interval.tv_sec = 2;
+    new_value.it_interval.tv_usec = 0;
+
+    int ret = setitimer(ITIMER_REAL, &new_value, NULL);
+    if(ret == -1)
+    {
+        perror("setitimer");
+        exit(0);
+    }
+    printf("定时器开始了...\n");
+
+    // getchar();   sigaction 函数不能用 getchar() 函数实现进程阻塞 - https://blog.csdn.net/fan_Mk/article/details/123638182
+    while(1);
+    
+    return 0;
+}
+```
+
+运行结果：
+
+![image-20231114204737557](./assets/image-20231114204737557.png)
+
+## 6. `SIGCHLD` 信号
+
+### a. `SIGCHLD` 信号产生的条件
+
+- 子进程终止时（发送给父进程，可以用来处理僵尸进程）
+- 子进程接收到 SIGSTOP 信号停止时
+- 子进程处在停止态，接收到 SIGCONT 信号被唤醒时
+
+### b. 利用 `SIGCHLD` 信号回收僵尸进程
+
+#### `wait` 阻塞实现  + 优化自己的信号捕捉函数忽略的僵尸进程
+
+```c
+// 利用 SIGCHLD 信号回收僵尸进程
+// 子进程在结束后会向父进程发送 SIGCHLD 信号，父进程默认忽略该信号
+// 修改父进程对该信号的处理动作函数
+
+#include <unistd.h>
+#include <sys/types.h>
+#include <signal.h>
+#include <stdio.h>
+#include <sys/wait.h>
+
+void myFun(int num)
+{
+    printf("Caught signal %d\n", num);
+    // 回收僵尸进程
+    while(1)
+    {
+        int ret = wait(NULL);     // 在处理 SIGCHLD 信号的时候，处理所有的僵尸进程。
+        if(ret > 0)
+            printf("回收子进程 %d\n", ret);
+        else if(ret == -1)  // 调用失败或者没有子进程需要回收
+            break;
+    }
+    // wait(NULL);     // 若在父进程接收到 SIGCHLD 信号，在处理 SIGCHLD 信号的同时，还有其他子进程结束，并向父进程发送信号，此时，由于未决信号集中 SIGCHLD 对应的仍然是 1，因此这个新的子进程会被忽略，由于 wait 函数一次只能回收一个子进程，所以该新子进程不会被成功回收。
+}
+
+int main()
+{
+    pid_t pid;
+
+    for(int i = 0; i < 20; i++)
+    {
+        pid = fork();
+        if(pid == 0) 	// child 子进程不要再产生子进程
+            break;
+    }
+
+    if(pid > 0)
+    {
+        // parent
+        // 注册信号捕捉函数，修改接收到 SIGCHLD 信号后的处理动作
+        struct sigaction act;
+        act.sa_flags = 0; 
+        act.sa_handler = myFun;
+        sigaction(SIGCHLD, &act, NULL);
+
+        // 模拟父进程没有结束，子进程先结束，变成僵尸进程
+        while(1)
+        {
+            printf("This is parent %d\n", getpid());
+            sleep(1);
+        }
+    }
+    else if(pid == 0)
+    {
+        // child
+        printf("This is child %d\n", getpid());
+    }
+
+    return 0;
+}
+```
+
+运行结果：
+
+如果不用 `while` 循环，仅调用 `wait(NULL)`，会出现没有被成功回收的僵尸进程：
+
+<img src="./assets/image-20231115151348315.png" alt="image-20231115151348315" style="zoom: 67%;" />
+
+![image-20231115151324703](./assets/image-20231115151324703.png)
+
+运行结果：
+
+调用 `while` 执行 `wait(NULL)`
+
+<img src="./assets/image-20231115152245100.png" alt="image-20231115152245100" style="zoom:67%;" />
+
+#### `waitpid` 非阻塞实现 + 优化注册信号捕捉函数前被忽略的僵尸进程
+
+```c
+// 利用 SIGCHLD 信号回收僵尸进程
+// 子进程在结束后会向父进程发送 SIGCHLD 信号，父进程默认忽略该信号
+// 修改父进程对该信号的处理动作函数
+
+#include <unistd.h>
+#include <sys/types.h>
+#include <signal.h>
+#include <stdio.h>
+#include <sys/wait.h>
+
+void myFun(int num)
+{
+    printf("Caught signal %d\n", num);
+    // 回收僵尸进程
+    while(1)
+    {
+        int ret = waitpid(-1, NULL, WNOHANG);    // 非阻塞回收。在处理 SIGCHLD 信号的时候，处理所有的僵尸进程。
+        if(ret > 0)
+            printf("回收子进程 %d\n", ret);
+        else if(ret == 0)  // 还有正在执行的子进程
+            break;
+        else if(ret == -1)  // 调用失败或子进程全部回收
+            break;
+    }
+}
+int main()
+{
+    // 有可能在注册完信号捕捉函数之前，子进程已经创建，并且结束运行，此时虽然子进程发送了 SIGCHLD 信号，但是由于信号处理动作还没有被修改，所以父进程忽略这些信号。
+    // 所以，在注册完信号捕捉函数，需要先阻塞 SIGCHLD 信号防止遗漏
+    sigset_t set;
+    sigemptyset(&set);
+    sigaddset(&set, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &set, NULL);
+
+    pid_t pid;
+
+    for(int i = 0; i < 20; i++)
+    {
+        pid = fork();
+        if(pid == 0) 	// child 子进程不要再产生子进程
+            break;
+    }
+
+    if(pid > 0)
+    {
+        // parent
+        
+        // 注册信号捕捉函数，修改接收到 SIGCHLD 信号后的处理动作
+        struct sigaction act;
+        act.sa_flags = 0; 
+        act.sa_handler = myFun;
+        sigemptyset(&act.sa_mask);    // 临时阻塞信号集，在执行 myFun 信号处理函数期间不用阻塞任何信号。
+        sigaction(SIGCHLD, &act, NULL);
+
+        // 信号捕捉函数注册结束，解除 SIGCHLD 的阻塞
+        sigprocmask(SIG_UNBLOCK, &set, NULL);
+
+        // 模拟父进程没有结束，子进程先结束，变成僵尸进程
+        while(1)
+        {
+            printf("This is parent %d\n", getpid());
+            sleep(2);
+        }
+    }
+    else if(pid == 0)
+    {
+        // child
+        printf("This is child %d\n", getpid());  
+    }
+
+    return 0;
+}
+```
+
+<img src="./assets/image-20231115154224312.png" alt="image-20231115154224312" style="zoom:67%;" />
 
 
 

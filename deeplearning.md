@@ -396,7 +396,9 @@ class Test(object):
 
 ---
 
-## `self.__dict__.update(cfg)` 这行代码用于将字典 `cfg` 中的键值对更新（或合并）到对象 `self` 的属性中。在这里，`self` 是一个对象，通常是某个类的实例，而 `cfg` 是一个字典对象。
+## `self.__dict__.update(cfg)` 
+
+这行代码用于将字典 `cfg` 中的键值对更新（或合并）到对象 `self` 的属性中。在这里，`self` 是一个对象，通常是某个类的实例，而 `cfg` 是一个字典对象。
 
 具体来说，`self.__dict__` 是对象 `self` 的属性字典，包含了该对象的所有属性。`update()` 方法用于将字典 `cfg` 中的键值对添加到 `self.__dict__` 中，从而更新对象的属性。这意味着，`self` 的属性将包括来自 `cfg` 的键值对
 
@@ -1056,11 +1058,11 @@ self.conv1 = nn.Sequential(
 
 ### e. `torch.nn.Module`
 
-`nn.Module`  是 **所有网络结构层次的父类**，当你要实现一个自己的 **层** 的时候，必须要继承这个类。
+- `nn.Module`  是 **所有网络结构层次（模块）的父类**，当你要实现一个自己的 **层（模块）** 的时候，必须要继承这个类。
 
-使用 `nn.Module` 的话，它就会对你神经网络的内部参数进行一个有效的管理。
+- 使用 `nn.Module` ，可以将网络分成各个模块，模块中也可以嵌套模块。它会对神经网络的内部参数进行一个有效的管理。
 
-
+- `__init__` 和 `forward` 方法必须重写。
 
 **e.g.**
 
@@ -1068,18 +1070,41 @@ self.conv1 = nn.Sequential(
 import torch.nn as nn
 import torch.nn.functional as F
 
+class moduleA(nn.Module):
+    def __init__(self):
+        super().__init__()
+        pass
+    def forward(self, x):
+        pass
+    
 class Model(nn.Module):
     def __init__(self):
         super().__init__()
         self.conv1 = nn.Conv2d(1, 20, 5)
         self.conv2 = nn.Conv2d(20, 20, 5)
+        self.A = moduleA()
 
     def forward(self, x):
         x = F.relu(self.conv1(x))
-        return F.relu(self.conv2(x))
+        x = F.relu(self.conv2(x))
+        return self.A(x)
 ```
 
+#### 成员函数
 
+##### i). `eval()`
+
+将 module 设置为评估模式（不是所有的模块都会被影响，只有那些参与梯度下降的才会被影响）
+
+`self.eval()` 等价于 `self.train(False)`。
+
+##### ii). `load_state_dict(state_dict, strict=True)`
+
+将 `state_dict` 找活干所有的参数缓存都拷贝给当前 `module`。
+
+iii). modules()
+
+可以枚举所有模块。
 
 ### f. `torch.nn.ModuleList` 
 
