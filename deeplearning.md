@@ -269,7 +269,11 @@ batch_array = array[None]
 # batch_array 现在是一个形状为 (1, 5) 的二维数组
 ```
 
+### 10. size 和 shape
 
+Numpy：`shape` 描述数组的维度，返回一个元组
+
+tensor：`size`描述张量的大小，返回一个tensor.size对象
 
 ## B. 类内函数
 
@@ -1222,6 +1226,71 @@ if __name__ == '__main__':
 全连接层常常出现在神经网络的末尾，用于将前面层的特征映射到最终的输出类别。然而，在深度卷积神经网络中，由于全连接层的参数量巨大，可能导致过拟合和计算负担，因此在一些网络设计中，全连接层被替代或减少。
 
 ps. 可以先用一个全局平均池化层减少参数量，再用一个带softmax的全连接层进行分类。
+
+## BottleNeck - 利用 1x1 卷积 降维减少参数量
+
+网络深度增加可以提高网络性能，但是参数量也会变大。
+
+**BottleNeck** 可以在加深网络的同时，减少参数量。**加深网络是主要目的。**
+
+<img src="./assets/1fb24ad58c53b55d0d8f9e7dc52c6ef.jpg" alt="1fb24ad58c53b55d0d8f9e7dc52c6ef" style="zoom: 25%;" />
+
+<img src="./assets/image-20231116101220783.png" alt="image-20231116101220783" style="zoom:50%;" />
+
+#### 代码
+
+```
+class BottleNeck(nn.Module):
+    '''
+    size：尺寸不变
+    channel：inplanes -> planes -> planes -> planes * 4
+    kernel: 1x1 -> 3x3 -> 1x1
+    '''
+    def __init__(self, inplanes, planes, stride=1, downsample=None, dilation=1):
+        super(BottleNeck, self).__init__()
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(planes)   # 对每个通道进行归一化
+        padding = 2 - stride
+        assert stride==1 or dilation==1, "stride and dilation must have one equals to zero at least"
+        if dilation > 1:
+            padding = dilation
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride, padding=padding, bias=False, dilation=dilation)
+        self.bn2 = nn.BatchNorm2d(planes)
+        self.conv3 = nn.Conv2d(planes, planes * 4, kernel_size=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(planes * 4)
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+        self.stride = stride
+        
+                
+    def forward(self, x):
+        identity = x    # identity mapping
+        
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+        
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+        
+        out = self.conv3(out)
+        out = self.bn3(out)
+        
+        if self.downsample is not None:
+            identity = self.downsample(x)
+
+        # if out.size() != identity.size():
+        #     print(out.size(), identity.size())
+        
+        out += identity
+        
+        out = self.relu(out)
+        
+        return out
+```
+
+
 
 ## ResNet
 
