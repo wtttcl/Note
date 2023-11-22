@@ -5271,11 +5271,131 @@ int main()
 
 <img src="./assets/image-20231115154224312.png" alt="image-20231115154224312" style="zoom:67%;" />
 
+# 线程（thread）
 
+## 1. 线程概念
 
+- 线程是允许应用程序并发执行多个任务的一种机制。（传统意义上的 UNIX 进程只是多线程的一个特例，该进程质保函一个线程）
 
+- 一个进程可以包含多个线程。
 
+- 同一个程序中的所有线程均会独立执行相同程序（？），且 **共享同一份全局内存区域**，其中包括 **初始化数据段**、**未初始化数据段**、**堆内存段**。
 
+- 进程是 CPU 分配资源的最小单位，线程是操作系统调度执行的最小单位。
+
+- 线程是轻量级的进程（LWP：Light Weight Process），在 Linux 环境下线程的本质仍然是进程（？）。
+
+- 查看指定进程的 LWP 号：`ps -LF pid` 。
+
+- Linux 自带的线程库不够完善，目前使用的线程库是 Red Hat 开展的 NPTL（Native POSIX Thread Library） 项目，这是 Linux 线程的一个新实现，同时也符合 POSXI 标准。查看当前 pthread 库版本：`getconf GNU_LIBPTHREAD_VERSION`
+
+  <img src="C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20231122200222540.png" alt="image-20231122200222540" style="zoom:80%;" />
+
+## 2. 线程产生的原因
+
+- 进程间需要通信才能共享信息。即便是利用父子进程之间的继承来实现通信，调用 `fork` 来创建进程的代价依然很高。即便使用写时复制技术，仍然需要复制内存页表、文件描述符表等多种进程属性。
+- 线程之间可以通过共享的内存区域进行通信。
+- 线程的创新比进程要快很多。
+
+## 3. 线程的共享资源和非共享资源
+
+### a. 共享资源
+
+- 进程 ID 和 父进程 ID
+- 进程组 ID 和 会话 ID
+- 用户 ID 和 用户组 ID
+- 文件描述符表
+- 信号处置
+- 文件系统的相关信息：文件权限掩码（umask）、当前工作目录等
+- 虚拟地址空间（栈、.text 除外）
+
+### b. 非共享资源
+
+- 线程 ID
+- 信号掩码
+- 线程特有数据
+- error 变量
+- 实时调度策略和优先级
+- 栈、本地变量和函数的调用链接信息
+
+## 4. 线程操作函数
+
+### a. pthread_create
+
+#### i). 头文件
+
+```c
+#include <pthread.h>
+```
+
+#### ii). 函数体
+
+```c
+int pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine) (void *), void *arg);
+/*
+  参数：
+    - thread：传出参数，子线程号
+    - attr：指定子线程的属性。一般使用 NULL，即使用默认属性创建线程
+    - strat_routine：子线程执行的函数
+    - arg：strat_routine() 的参数
+
+  返回值：
+    - 调用成功，返回 0；调用失败，返回 error number，且 *thread 未定义
+      - 此 error number 与进程的 errno 不同，应调用 char * strerror(int errnum) 获取错误信息（头文件：<string.h>）
+      - EAGAIN：资源不足，无法创建新线程。
+      - EINVAL：attr 中存在的无效的设置。
+      - EPERM：没有 attr 中指定的调度策略和参数。
+  作用：
+    - 创建一个线程，执行 strat_routine(), arg 作为 strat_routine() 的唯一参数传递。
+*/
+```
+
+#### iii). 举个例子 - 创建一个子线程
+
+```c
+// 一般情况下,main函数所在的线程我们称之为主线程（main线程），其余创建的线程称之为子线程。
+
+#include <pthread.h>
+#include <string.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>     // exit
+
+void * callback(void * arg)
+{
+    printf("This is a new thread, num = %d\n", *(int *)arg);
+    return NULL;
+}
+int main()
+{
+    pthread_t tid;
+    int num = 10;
+    int ret = pthread_create(&tid, NULL, callback, (void *)&num); 	// 取址符
+    if(ret != 0)
+    {
+        char * errstr = strerror(ret);
+        printf("error: %s\n", errstr);
+        exit(0);
+    }
+    // 子线程只执行 callback，主线程会继续往下执行
+    for(int i = 0; i < 5; i++)
+    {
+        printf("%d\n", i);
+    }
+
+    sleep(1);   // 确保子线程抢占时间片，避免子线程还未创建主线程已经退出
+
+    return 0;
+}
+```
+
+- 主线程和子线程的执行顺序不确定，涉及时间片抢占。
+- 子线程只会执行 `start_routine()`，不会执行 `main` 函数中接下来的
+- 代码段。
+
+#### iv) 运行结果：
+
+![image-20231122204210231](C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20231122204210231.png)
 
 
 
