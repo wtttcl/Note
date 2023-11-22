@@ -275,6 +275,14 @@ Numpy：`shape` 描述数组的维度，返回一个元组
 
 tensor：`size`描述张量的大小，返回一个tensor.size对象
 
+### 11. `__all__`
+
+指定公共接口，防止导入模块时导入不需要的或者私有的成员。
+
+当通过 `from module import *` 导入一个模块中的方法时，只有 `__all__` 中指定的方法才能被导入。
+
+如果模块没有定义 `__all__`，默认情况下，`from module import *` 将导入模块中**所有不以下划线开头**的方法。
+
 ## B. 类内函数
 
 ### 1. `__call__()`
@@ -759,6 +767,29 @@ class DataSets(Dataset):
         return 一个 data
 ```
 
+#### c. `torch.utlis.model_zoo`：从指定的 URL 下载预训练模型参数
+
+从指定的 URL 下载预训练模型参数，便于将预训练权重加载到模型中。
+
+新版本的 pytorch 中，已经被 `torch.hub.load` 取代。
+
+```
+import torch
+from torch.utils.model_zoo import load_url
+
+# 定义一个模型
+model = ...
+
+# 定义预训练模型的 URL
+model_url = "https://download.pytorch.org/models/resnet50-19c8e357.pth"
+
+# 下载预训练模型的参数
+pretrained_dict = load_url(model_url)
+
+# 将预训练权重加载到模型中
+model.load_state_dict(pretrained_dict)
+```
+
 
 
 ### 初始化模型权重
@@ -1104,7 +1135,9 @@ class Model(nn.Module):
 
 ##### ii). `load_state_dict(state_dict, strict=True)`
 
-将 `state_dict` 找活干所有的参数缓存都拷贝给当前 `module`。
+将 `state_dict` 中所有的参数缓存都拷贝给当前 `module`。
+
+通过加载预训练模型的状态字典，可以使用在其他任务上预训练的模型参数作为当前任务的起点，加速模型的收敛或者提高性能。
 
 iii). modules()
 
