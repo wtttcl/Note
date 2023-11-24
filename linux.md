@@ -5553,8 +5553,11 @@ int main()
 
 <img src="./assets/image-20231115154224312.png" alt="image-20231115154224312" style="zoom:67%;" />
 
+# 线程（thread）
 
+## 1. 线程概念
 
+<<<<<<< HEAD
 # 线程（thread）
 
 ## 1. 线程概念
@@ -5562,50 +5565,423 @@ int main()
 - 线程是允许应用程序并发执行多个任务的一种机制。
 - 一个进程可以包含多个线程。
 - 同一个程序中的所有线程均会独立执行相同程序。
+- 线程是允许应用程序并发执行多个任务的一种机制。（传统意义上的 UNIX 进程只是多线程的一个特例，该进程质保函一个线程）
+
+>>>>>>> f31ac2017ee0693e50a4bd38460436014c21231f
+
+>>>>>>> 8a192446d2bbeed7cd5b719090be0d2a92e96691
+
+- 一个进程可以包含多个线程。
+
+- 同一个程序中的所有线程均会独立执行相同程序（？），且 **共享同一份全局内存区域**，其中包括 **初始化数据段**、**未初始化数据段**、**堆内存段**。
+
+- 进程是 CPU 分配资源的最小单位，线程是操作系统调度执行的最小单位。
+
+- 线程是轻量级的进程（LWP：Light Weight Process），在 Linux 环境下线程的本质仍然是进程（？）。
+
+- 查看指定进程的 LWP 号：`ps -LF pid` 。
+
+- Linux 自带的线程库不够完善，目前使用的线程库是 Red Hat 开展的 NPTL（Native POSIX Thread Library） 项目，这是 Linux 线程的一个新实现，同时也符合 POSXI 标准。查看当前 pthread 库版本：`getconf GNU_LIBPTHREAD_VERSION`
+
+  <img src="C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20231122200222540.png" alt="image-20231122200222540" style="zoom:80%;" />
+
+## 2. 线程产生的原因
+
+- 进程间需要通信才能共享信息。即便是利用父子进程之间的继承来实现通信，调用 `fork` 来创建进程的代价依然很高。即便使用写时复制技术，仍然需要复制内存页表、文件描述符表等多种进程属性。
+- 线程之间可以通过共享的内存区域进行通信。
+- 线程的创新比进程要快很多。
+
+## 3. 线程的共享资源和非共享资源
+
+### a. 共享资源
+
+- 进程 ID 和 父进程 ID
+- 进程组 ID 和 会话 ID
+- 用户 ID 和 用户组 ID
+- 文件描述符表
+- 信号处置
+- 文件系统的相关信息：文件权限掩码（umask）、当前工作目录等
+- 虚拟地址空间（栈、.text 除外）
+
+### b. 非共享资源
+
+- 线程 ID
+- 信号掩码
+- 线程特有数据
+- error 变量
+- 实时调度策略和优先级
+- 栈、本地变量和函数的调用链接信息
+
+## 4. 线程操作函数
+
+### a. `pthread_t` 和 `pthread_self`
+
+#### i). 头文件
+
+```c
+#include <pthread.h>
+```
+
+#### ii). 函数体
+
+```c
+typedef unsigned long int pthread_t; 	// long int 型，输出用 %ld
+```
 
 
 
+```c
+pthread_t pthread_self(void);
+/*
+  参数：
+    - 无
+
+  返回值：
+    - 返回调用线程号。
+
+  作用：
+    - 返回调用线程号。其值与 pthread_create 中传出参数 *thread 值相同
+*/
+```
 
 
 
+### b.== `pthread_create`==
+
+#### i). 头文件
+
+```c
+#include <pthread.h>
+```
+
+#### ii). 函数体
+
+```c
+int pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine) (void *), void *arg);
+/*
+  参数：
+    - thread：传出参数，子线程号
+    - attr：指定子线程的属性。一般使用 NULL，即使用默认属性创建线程
+    - strat_routine：子线程执行的函数
+    - arg：strat_routine() 的参数
+
+  返回值：
+    - 调用成功，返回 0；调用失败，返回 error number，且 *thread 未定义
+      - 此 error number 与进程的 errno 不同，应调用 char * strerror(int errnum) 获取错误信息（头文件：<string.h>）
+      - EAGAIN：资源不足，无法创建新线程。
+      - EINVAL：attr 中存在的无效的设置。
+      - EPERM：没有 attr 中指定的调度策略和参数。
+  作用：
+    - 创建一个线程，执行 strat_routine(), arg 作为 strat_routine() 的唯一参数传递。
+*/
+```
+
+#### iii). 举个例子 - 创建一个子线程
+
+```c
+// 一般情况下,main函数所在的线程我们称之为主线程（main线程），其余创建的线程称之为子线程。
+
+#include <pthread.h>
+#include <string.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>     // exit
+
+void * callback(void * arg)
+{
+    printf("This is a new thread, num = %d\n", *(int *)arg);
+    return NULL;
+}
+int main()
+{
+    pthread_t tid;
+    int num = 10;
+    int ret = pthread_create(&tid, NULL, callback, (void *)&num); 	// 取址符
+    if(ret != 0)
+    {
+        char * errstr = strerror(ret);
+        printf("error: %s\n", errstr);
+        exit(0);
+    }
+    // 子线程只执行 callback，主线程会继续往下执行
+    for(int i = 0; i < 5; i++)
+    {
+        printf("%d\n", i);
+    }
+
+    sleep(1);   // 确保子线程抢占时间片，避免子线程还未创建主线程已经退出
+
+    return 0;
+}
+```
+
+- 主线程和子线程的执行顺序不确定，涉及时间片抢占。
+- 子线程只会执行 `start_routine()`，不会执行 `main` 函数中接下来的
+- 代码段。
+
+#### iv) 运行结果：
+
+![image-20231122204210231](C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20231122204210231.png)
+
+### c. `pthread_exit`
+
+#### i). 头文件
+
+```c
+#include <pthread.h>
+```
+
+#### ii). 函数体
+
+```c
+void pthread_exit(void *retval);
+/*
+  参数：
+    - retval：传出参数，其值可在 pthread_join() 中获取到。不需要则传入 NULL。
+
+  返回值：
+    - 无返回值
+
+  作用：
+    - 终止调用线程，并通过 retval 返回一个值（可供同一进程中调用 pthread_join(3) 的另一线程使用）
+	========== (TODO:) ==========
+    - 线程终止并不会释放进程共享资源（例如互斥锁、条件变量、信号量和文件描述符），并且使用 atexit(3) 注册的函数也不会被调用。
+    - 在进程中的最后一个线程终止后，进程将通过调用 exit(3) 以零的退出状态终止；因此，进程共享的资源将被释放，同时使用 atexit(3) 注册的函数将被调用。
+*/
+```
+
+#### iii). 举个例子 - 主线程退出，子线程正常执行
+
+```c
+#include <stdio.h>
+#include <pthread.h>
+#include <string.h>
+#include <unistd.h>     // sleep
+
+void * callback(void * arg)
+{
+    for(int i = 0; i < 5; i++)
+    {
+       printf("%d, This is child thread, tid = %ld\n", i,pthread_self());
+       sleep(1);
+    }
+    
+}
+int main()
+{
+    pthread_t tid;
+
+    int ret = pthread_create(&tid, NULL, callback, NULL);
+    if(ret != 0)
+    {
+        char * errstr = strerror(ret);
+        printf("error: %s\n", errstr);
+    }
+
+    for(int i = 0; i < 5; i++)
+    {
+        printf("%d\n", i);
+    }
+
+    printf("tid: %ld, main thread is %ld\n", tid, pthread_self());
+
+    // 主线程退出不会影响子线程执行，因此子线程继续执行
+    pthread_exit(NULL);     // 主线程退出
+    printf("main thread exits!\n");
+
+    return 0;
+}
+```
+
+**运行结果：**
+
+- 主线程退出不影响其他线程执行，因此主线程退出后，子线程正常执行：
+
+<img src="./assets/image-20231124095227109.png" alt="image-20231124095227109" style="zoom: 80%;" />
+
+- 主线程和子线程的执行次序还是根据时间片抢占来的，并不是说一定是主线程执行完后子线程才能执行。
+
+<img src="./assets/image-20231124095254147.png" alt="image-20231124095254147" style="zoom:80%;" />
+
+### d. `pthread_equal`
+
+#### i). 头文件
+
+```c
+#include <pthread.h>
+```
+
+#### ii). 函数体
+
+```c
+int pthread_equal(pthread_t t1, pthread_t t2);
+/*
+  参数：
+    - t1、t2：要比较的两个线程号
+    
+  返回值：
+    - 相等返回非零值；不等返回 0。
+  
+  功能：
+    - 比较两个线程ID是否相等.
+    - 不同的操作系统，pthread_t 类型的实现不一样，有的是无符号的长整型，有的是使用结构体去实现的。因此为了兼容各个设备，需要有这样一个函数。
+*/
+```
 
 
 
+### e. `pthread_join`
 
+#### i). 头文件
 
+```c
+#include <pthread.h>
+```
 
+#### ii). 函数体
 
+```c
+int pthread_join(pthread_t thread, void **retval);
+/*
+  参数：
+    - thread：需要回收的子线程号
+    - retval：接收子线程退出时的返回值 - 指向 pthread_exit(void *retval) 的 retval 的指针，指针的指针，二级指针。
 
+  返回值：
+    - 调用成功，返回 0；调用失败，返回错误号。
+      - EDEADLK：检测到死锁（例如，两个线程尝试相互加入）；或 thread 指定的是调用线程。
+      - EINVAL：thread 不可连接，或者另一个线程已经在等待与此线程结合。
+      - ESRCH：无法找到具有线程 ID thread 的线程。
 
+  作用：
+    - 连接一个已经终止的线程，回收其资源。
+    - 阻塞函数，调用一次只能回收一个子线程。
+    - 一般在主线程中使用。
+*/
+```
 
+#### iii). 举个例子 - 主线程回收子线程资源
 
+**1. 首先不涉及子线程返回状态，测试 `pthread_join()` 阻塞执行 效果：**
 
+```
+#include <stdio.h>
+#include <pthread.h>
+#include <string.h>
+#include <unistd.h>
 
+void * callback(void * arg)
+{
+    printf("This is child thread, tid = %ld\n", pthread_self());
+    sleep(5);
+    return NULL;
+}
+int main()
+{
+    pthread_t tid;
+    
+    int ret = pthread_create(&tid, NULL, callback, NULL);
+    if(ret != 0)
+    {
+        char * errstr = strerror(ret);
+        printf("error: %s\n", errstr);
+    }
+    for(int i = 0; i < 5; i++)
+    {
+        printf("%d\n", i);
+    }
 
+    printf("tid: %ld, main thread is %ld\n", tid, pthread_self());
 
+    // 主线程回收子线程资源
+    ret = pthread_join(tid, NULL);  // 阻塞回收，等待一个子线程结束才会继续执行
+    if(ret != 0)
+    {
+        char * errstr = strerror(ret);
+        printf("error: %s\n", errstr);
+    }
+    printf("回收子线程资源回收\n");
 
+    // 主线程退出不会影响子线程执行，因此子线程继续执行
+    pthread_exit(NULL);     // 主线程退出
+    printf("main thread exits!\n");
 
+    return 0;
+}
+```
 
+执行结果：
 
+- 阻塞执行。主线程等待子线程结束：
 
+<img src="./assets/image-20231124105152815.png" alt="image-20231124105152815" style="zoom:90%;" />
 
+**2. 主线程调用 `pthread_join` 接收子线程的返回状态**
 
+```c
+#include <stdio.h>
+#include <pthread.h>
+#include <string.h>
+#include <unistd.h>
 
+int value = 10;
+void * callback(void * arg)
+{
+    // int value = 10;
+    value = 5;
+    printf("This is child thread, tid = %ld\n", pthread_self());
+    pthread_exit((void *)&value);   // pthread_exit(void *retval)
+    // pthread_exit((void *)&value); 等价于 return (void *)&value
+}
+int main()
+{
+    pthread_t tid;
+    
+    int ret = pthread_create(&tid, NULL, callback, NULL);
+    if(ret != 0)
+    {
+        char * errstr = strerror(ret);
+        printf("error: %s\n", errstr);
+    }
+    for(int i = 0; i < 5; i++)
+    {
+        printf("%d\n", i);
+    }
 
+    printf("tid: %ld, main thread is %ld\n", tid, pthread_self());
 
+    // 主线程回收子线程资源， 阻塞回收，等待一个子线程结束才会继续执行
+    int * thread_retval;
+    ret = pthread_join(tid, (void **)&thread_retval);  // **retval 指针的指针
+    if(ret != 0)
+    {
+        char * errstr = strerror(ret);
+        printf("error: %s\n", errstr);
+    }
+    printf("回收子线程资源回收, exit num = %d\n", *thread_retval);
 
+    // 主线程退出不会影响子线程执行，因此子线程继续执行
+    pthread_exit(NULL);     // 主线程退出
+    printf("main thread exits!\n");
 
+    return 0;
+}
+```
 
+执行结果：
 
+<img src="./assets/image-20231124110615942.png" alt="image-20231124110615942" style="zoom:90%;" />
 
+#### iv). `(void **) retval` 解释
 
+- 在 `pthread_exit(void *retval)` 函数中，要求返回状态要是一个指针，也就是说，要将返回状态存储到内存单元中，然后返回一个指向返回状态的指针。
+- 而在 `pthread_join(pthread_t thread, void **retval)` 中，传出参数 `retval` 是一个二级指针，即，指针的指针，他是 **指向存储子线程返回状态的指针的指针**，因此是一个二级指针。
+- 这就要求了，子线程的返回状态不能是子线程执行函数中的局部变量，否则**在子线程退出时，栈空间的局部变量会被释放，从而导致父线程读取返回状态出错**。
+- 因此，返回状态可以先定义为 **全局变量**。
 
+### d. 
 
-
-
-
-
-
+### e. 
 
 
 
