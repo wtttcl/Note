@@ -5979,9 +5979,88 @@ int main()
 - 这就要求了，子线程的返回状态不能是子线程执行函数中的局部变量，否则**在子线程退出时，栈空间的局部变量会被释放，从而导致父线程读取返回状态出错**。
 - 因此，返回状态可以先定义为 **全局变量**。
 
-### d. 
+### f. `pthread_detach`
 
-### e. 
+#### i). 头文件
+
+```c
+#include <pthread.h>
+```
+
+#### ii). 函数体
+
+```c
+int pthread_detach(pthread_t thread);
+/*
+  参数：
+    - thread：要分离的线程号。
+
+  返回值：
+    - 调用成功，返回 0；调用失败，返回错误号。
+      - EINVAL：thread 不可连接。
+      - ESRCH：无法找到具有线程 ID thread 的线程。
+
+  作用：
+    - 分离指定线程。
+      - 线程一旦被分离，就不能通过 pthread_join 被回收。
+      - 分离的线程在终止后会自动释放资源。
+      - 线程不能被多次分离，否则会产生不可预料的行为。
+      - 不能用 pthread_join 连接一个已经分离的线程。
+*/
+```
+
+#### iii). 举个例子 - 链接已经分离的子线程
+
+```c
+#include <pthread.h>
+#include <stdio.h>
+#include <string.h>
+
+void * callback(void * arg)
+{
+    printf("This is child thread, tid = %ld\n", pthread_self());
+    return NULL;
+}
+int main()
+{
+    pthread_t tid;
+
+    int ret = pthread_create(&tid, NULL, callback, NULL);
+    if(ret != 0)
+    {
+        char * errstr = strerror(ret);
+        printf("error1: %s\n", errstr);
+    }
+
+    printf("tid: %ld, main thread is %ld\n", tid, pthread_self());
+
+    // 设置子线程分离
+    ret = pthread_detach(tid);
+    if(ret != 0)
+    {
+        char * errstr = strerror(ret);
+        printf("error2: %s\n", errstr);
+    }
+
+    // 尝试连接已经分离的子线程
+    ret = pthread_join(tid, NULL);
+    if(ret != 0)
+    {
+        char * errstr = strerror(ret);
+        printf("error3: %s\n", errstr);
+    }
+
+    pthread_exit(NULL);
+
+    return 0;
+}
+```
+
+执行结果：报错。
+
+![image-20231124144439376](./assets/image-20231124144439376.png) 
+
+### g. 
 
 
 
