@@ -5612,7 +5612,7 @@ int main()
 - 实时调度策略和优先级
 - 栈、本地变量和函数的调用链接信息
 
-## 4. 线程操作函数
+## 4. 线程操作函数 （-pthread）
 
 ### a. `pthread_t` 和 `pthread_self`
 
@@ -6060,15 +6060,259 @@ int main()
 
 ![image-20231124144439376](./assets/image-20231124144439376.png) 
 
-### g. 
+### g. `pthread_cancel`
 
+#### i). 头文件
 
+```c
+#include <pthread.h>
+```
 
+#### ii). 函数体
 
+```c
+int pthread_cancel(pthread_t thread);
+/*
+  参数：
+    - thread：向 thread 线程发送取消请求
 
+  返回值：
+    - 调用成功，返回 0；调用失败，返回错误号。
+      - ESRCH：找不到该线程
 
+  作用：
+    - 向指定线程发送取消请求
+      - 目标线程对取消请求的响应取决于线程的两个属性：线程的取消状态和类型。
+        - 线程的取消状态：
+          由 pthread_setcancelstate() 确定，可以是启用（新线程的默认状态）或禁用。如果线程已禁用取消，那么取消请求将保持排队状态，直到线程启用取消。如果线程已启用取消，那么其取消类型将确定何时发生取消。
+        - 线程的取消类型：
+          由 pthread_setcanceltype() 确定，可以是异步的或延迟的（新线程的默认类型）。异步取消性意味着线程可以在任何时候被取消（通常是立即，但系统不保证这一点）。延迟取消性意味着取消将被延迟，直到线程下次调用一个被视为取消点的函数。（取消点通常是系统提供的一些系统调用，可以粗略地理解为用户区到内核区的切换）
 
+      - 当取消请求被执行时，对于线程（按照以下顺序）会发生以下步骤：
+        - 取消清理处理程序被弹出（按照它们被推送的相反顺序）并被调用。（参见 pthread_cleanup_push()。）
+        - 线程特定数据析构函数按照不确定的顺序被调用。（参见 pthread_key_create()。）
+        - 线程被终止。（参见 pthread_exit()。）
 
+      - 在取消线程终止后，使用 pthread_join() 连接该线程将获取 PTHREAD_CANCELED 作为线程的退出状态。
+*/
+
+```
+
+#### iii). 举个例子 - 主线程取消子线程
+
+```c
+
+#include <pthread.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+
+void * callback(void * args)
+{
+    printf("child thread is %ld\n", pthread_self());
+    for(int i = 0; i < 5; i++)
+    {
+        printf("child thread is %ld, i = %d\n", pthread_self(), i);
+        // printf 调用了 I/O 设备，这可能会导致线程阻塞，而线程阻塞就是该线程可被取消的地方
+    }
+    return NULL;
+}
+int main()
+{
+    pthread_t tid;
+    int ret = pthread_create(&tid, NULL, callback, NULL);
+    if(ret != 0)
+    {
+        char * strerr = strerror(ret);
+        printf("error: %s\n", strerr);
+    }
+
+    pthread_cancel(tid);
+
+    for(int i = 0; i < 5; i++)
+    {
+        printf("main thread is %ld, i = %d\n", pthread_self(), i);
+    }
+    
+    pthread_exit(NULL);
+    
+    return 0;
+}
+```
+
+**运行结果：**
+
+由于线程不是立即取消，而是在遇到取消点后取消，所以每次运行结果可能不同。
+
+<img src="./assets/image-20231127123410767.png" alt="image-20231127123410767" style="zoom:90%;" />
+
+<img src="./assets/image-20231127123421392.png" alt="image-20231127123421392" style="zoom:90%;" />
+
+### h. `pthread_attr_`
+
+#### i). 头文件
+
+```c
+#include <pthread.h>
+```
+
+#### ii). 函数体
+
+```c
+int pthread_attr_init(pthread_attr_t *attr);
+/*
+  参数：
+    - attr：传出参数，获取线程默认属性
+
+  返回值：
+    - 调用成功，返回 0；调用失败，返回错误号。
+
+  作用：
+    - 初始化线程属性变量。
+      - 在设置好 attr 后，可以调用 pthread_create 创建指定属性的线程。
+      - 对已经初始化的线程属性对象调用 pthread_attr_init() 将导致未定义的行为。
+      - 当不再需要线程属性对象时，应使用 pthread_attr_destroy() 函数销毁它。销毁线程属性对象对使用该对象创建的线程没有影响。
+      - 一旦线程属性对象被销毁，可以使用 pthread_attr_init() 对其进行重新初始化。对已销毁的线程属性对象的任何其他使用都将导致未定义的结果。
+*/
+```
+
+```c
+int pthread_attr_destroy(pthread_attr_t *attr);
+/*
+  参数：
+    - attr：要释放的资源
+
+  返回值：
+    - 调用成功，返回 0；调用失败，返回错误号。
+
+  作用：
+    - 释放线程属性的资源
+*/
+```
+
+```c
+int pthread_attr_getdetachstate(const pthread_attr_t *attr, int *detachstate);
+/*
+    参数：
+    - attr：线程属性，pthread_attr_init 获取
+    - detachstate：传出参数，存储线程的分离状态
+
+  返回值：
+    - 调用成功，返回 0；调用失败，返回错误号。
+
+  作用：
+    - 获取线程分离的状态属性
+*/
+```
+
+```c
+int pthread_attr_setdetachstate(pthread_attr_t *attr, int detachstate);
+/*
+参数：
+    - attr：线程属性，pthread_attr_init 获取
+    - detachstate：要设置的属性
+      - PTHREAD_CREATE_DETACHED：使用 attr 创建的线程将以分离状态创建。
+      - PTHREAD_CREATE_JOINABLE：使用 attr 创建的线程将以可连接状态创建。
+  返回值：
+    - 调用成功，返回 0；调用失败，返回错误号。
+
+  作用：
+    - 设置线程分离的状态属性
+*/
+```
+
+#### iii). 举个例子 - 主线程中先设置子线程属性，再创建子线程
+
+```c
+#include <pthread.h>
+#include <stdio.h>
+#include <unistd.h>
+
+void * callback(void * arg) {
+    printf("chid thread id : %ld\n", pthread_self());
+    return NULL;
+}
+int main()
+{
+    // 初始化线程属性
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+
+    // 获取线程状态
+    int detachstate;
+    pthread_attr_getdetachstate(&attr, &detachstate);
+    if(detachstate == PTHREAD_CREATE_DETACHED)
+    {
+        printf("new thread is detached!\n");
+    }
+    else if(detachstate == PTHREAD_CREATE_JOINABLE)
+    {
+        printf("new thread is joinable!\n");
+    }
+
+    // 设置子线程为分离态
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+    pthread_t tid;
+    pthread_create(&tid, &attr, callback, NULL);
+    printf("new thread created!\n");
+
+    // 获取线程状态
+    pthread_attr_getdetachstate(&attr, &detachstate);
+    if(detachstate == PTHREAD_CREATE_DETACHED)
+    {
+        printf("new thread is detached!\n");
+    }
+    else if(detachstate == PTHREAD_CREATE_JOINABLE)
+    {
+        printf("new thread is joinable!\n");
+    }
+
+    // 获取线程的栈的大小
+    size_t size;
+    pthread_attr_getstacksize(&attr, &size);
+    printf("thread stack size : %ld\n", size);
+
+    // 释放线程属性资源
+    pthread_attr_destroy(&attr);
+
+    pthread_exit(NULL);
+
+    return 0;
+}
+```
+
+**运行结果：**
+
+![image-20231127130845525](./assets/image-20231127130845525.png)
+
+## 5. 线程同步
+
+### a. 线程同步
+
+- 线程的主要优势在于，能够 **通过全局变量来共享信息**。不过，这种便捷的共享是有代价的：必须 **确保多个线程不会同时修改同一变量**，或者 **某一线程不会读取正在由其他线程修改的变量**。
+
+- **临界区** ：指访问某一共享资源的 **代码片段**，并且这段代码的执行应为 **原子操作**，也就是同时访问同一共享资源的其他线程不应中断该片段的执行。
+
+- **线程同步**：即当有一个线程在对内存进行操作时，其他线程都不可以对这个内存地址进行操作，直到该线程完成操作，其他线程才能对该内存地址进行操作，而其他线程则处于等待状态。
+
+- **互斥量**：为避免线程更新共享变量时出现问题，可以使用互斥量（mutex 是 mutual exclusion 的缩写）来 **确保同时仅有一个线程可以访问某项共享资源**。可以使用互斥量来 **保证对任意共享资源的原子访问**。
+
+- 互斥量有两种状态：**已锁定（locked）**和 **未锁定（unlocked）**。任何时候，至多只有一个线程可以锁定该互斥量。试图对已经锁定的某一互斥量再次加锁，将可能阻塞线程或者报错失败，具体取决于加锁时使用的方法。
+
+- 一旦线程锁定互斥量，即成为该互斥量的所有者，**只有所有者才能给互斥量解锁**。一般情况下，对每一共享资源（可能由多个相关变量组成）会使用不同的互斥量，每一线程在访问同一资源时将采用如下协议： 
+
+  -  针对共享资源锁定互斥量
+  -  访问共享资源
+  - 对互斥量解锁
+
+- 如果多个线程试图执行这一块代码（一个临界区），事实上只有一个线程能够持有该互斥量（**其他线程将遭到阻塞**），即同时只有一个线程能够进入这段代码区域，如下图所示：
+
+  <img src="./assets/image-20231127131815774.png" alt="image-20231127131815774" style="zoom:80%;" />
+
+### b. 互斥量
+
+#### i). pthread_mutex_t
 
 
 
