@@ -5906,7 +5906,7 @@ int main()
     pthread_exit(NULL);     // 主线程退出
     printf("main thread exits!\n");
 
-    return 0;
+    return 0; 	// 这一行不会被执行，因为主线程已经通过 pthread_exit 退出
 }
 ```
 
@@ -6310,9 +6310,388 @@ int main()
 
   <img src="./assets/image-20231127131815774.png" alt="image-20231127131815774" style="zoom:80%;" />
 
-### b. 互斥量
+### b. 互斥锁
 
-#### i). pthread_mutex_t
+#### i). 头文件
+
+```c
+#include <pthread.h>
+```
+
+#### ii). 函数体
+
+```c
+pthread_mutex_t 	// 互斥量结构体
+/*
+    typedef union
+    {
+      struct __pthread_mutex_s __data;
+      char __size[__SIZEOF_PTHREAD_MUTEX_T];
+      long int __align;
+    } pthread_mutex_t;
+*/
+```
+
+```c
+int pthread_mutex_init(pthread_mutex_t *restrict mutex, const pthread_mutexattr_t *restrict attr);
+/* 
+  参数：
+    - mutex：要初始化的互斥量
+    - attr：设置互斥量的属性，若为 NULL，则使用默认属性
+
+  返回值：
+    - 调用成功，返回 0；调用失败，返回错误号。
+
+  作用：
+    - 初始化互斥量
+*/
+```
+
+```c
+int pthread_mutex_destroy(pthread_mutex_t *mutex);
+/*
+  参数：
+    - mutex
+
+  返回值：
+    - 调用成功，返回 0；调用失败，返回错误号。
+
+  作用：
+    - 释放互斥锁
+*/
+```
+
+```c
+int pthread_mutex_lock(pthread_mutex_t *mutex);
+/*
+  参数：
+    - mutex：要加锁的互斥量
+
+  返回值：
+    - 调用成功，返回 0；调用失败，返回错误号。
+
+  作用：
+    - 为互斥量加锁，阻塞执行。若互斥量已被其他线程锁住，调用线程将会被阻塞，直到它成功获取到互斥量为止。
+*/   
+```
+
+```c
+int pthread_mutex_trylock(pthread_mutex_t *mutex);
+/*
+  参数：
+    - mutex：尝试加锁的互斥量
+
+  返回值：
+    - 成功获得锁，返回 0；互斥量已被其他线程锁住，返回 EBUSY；调用失败，返回错误号。
+
+  作用：
+    - 尝试为互斥量加锁，非阻塞执行。若互斥量已被其他线程锁住，调用线程不会阻塞，继续执行。
+    - 一般作为 if 执行的条件，若获得锁则执行...，否则不执行...。
+*/   
+```
+
+```c
+int pthread_mutex_unlock(pthread_mutex_t *mutex);
+/*
+  参数：
+    - mutex：要释放锁的互斥量
+
+  返回值：
+    - 调用成功，返回 0；调用失败，返回错误号。
+
+  作用：
+    - 释放互斥锁。
+*/
+```
+
+
+
+#### iii). 举个例子 - 创建三个子线程，主线程管理和回收子线程，子线程共同买卖50张票。
+
+```c
+#include <pthread.h>
+#include <stdio.h>
+#include <unistd.h>
+
+// 全局变量，线程共享
+pthread_mutex_t mutex;
+int tickets = 50;
+
+
+void * sell(void * args)
+{
+    while(1)
+    {
+        pthread_mutex_lock(&mutex);
+        if(tickets > 0)
+        {
+            printf("child thread %ld sells ticket %d\n", pthread_self(), tickets);
+            tickets--;
+        }
+        else
+        {
+            pthread_mutex_unlock(&mutex);
+            break;
+        }
+        pthread_mutex_unlock(&mutex);
+        usleep(600);
+    }
+    pthread_exit(NULL);
+}
+int main()
+{
+    pthread_mutex_init(&mutex, NULL);
+    pthread_t tid[3];
+    for(int i = 0; i < 3; i++)
+    {
+        pthread_create(&tid[i], NULL, sell, NULL);
+    }
+
+    for(int i = 0; i < 3; i++)
+    {
+        pthread_join(tid[i], NULL);
+    }
+
+    pthread_mutex_destroy(&mutex);
+    pthread_exit(NULL);
+
+    return 0;
+}
+```
+
+**运行结果：**
+
+<img src="./assets/image-20231128095845517.png" alt="image-20231128095845517" style="zoom:80%;" />
+
+### c. 死锁
+
+- 一个线程需要同时访问两个或更多不同的共享资源，而每个资源又都由不同的互斥量管理。当超过一个线程加锁同一组互斥量时，就有可能发生死锁。
+- 两个或两个以上的进程在执行过程中，因争夺共享资源而造成的一种互相等待的现象， 若无外力作用，它们都将无法推进下去。此时称系统处于死锁状态或系统产生了死锁。
+- 死锁的几种场景： 
+  - 忘记释放锁（死锁其他获取锁的线程）
+  - 重复加锁（自己死锁自己）
+  - 多线程多锁，抢占锁资源
+
+<img src="./assets/image-20231128100459661.png" alt="image-20231128100459661" style="zoom:80%;" />
+
+```c
+#include <stdio.h>
+#include <pthread.h>
+#include <unistd.h>
+
+// 创建2个互斥量
+pthread_mutex_t mutex1, mutex2;
+
+void * workA(void * arg) {
+
+    pthread_mutex_lock(&mutex1);
+    sleep(1);
+    pthread_mutex_lock(&mutex2);
+
+    printf("workA....\n");
+
+    pthread_mutex_unlock(&mutex2);
+    pthread_mutex_unlock(&mutex1);
+    return NULL;
+}
+
+
+void * workB(void * arg) {
+    pthread_mutex_lock(&mutex2);
+    sleep(1);
+    pthread_mutex_lock(&mutex1);
+
+    printf("workB....\n");
+
+    pthread_mutex_unlock(&mutex1);
+    pthread_mutex_unlock(&mutex2);
+
+    return NULL;
+}
+
+int main() {
+
+    // 初始化互斥量
+    pthread_mutex_init(&mutex1, NULL);
+    pthread_mutex_init(&mutex2, NULL);
+
+    // 创建2个子线程
+    pthread_t tid1, tid2;
+    pthread_create(&tid1, NULL, workA, NULL);
+    pthread_create(&tid2, NULL, workB, NULL);
+
+    // 回收子线程资源
+    pthread_join(tid1, NULL);
+    pthread_join(tid2, NULL);
+
+    // 释放互斥量资源
+    pthread_mutex_destroy(&mutex1);
+    pthread_mutex_destroy(&mutex2);
+
+    return 0;
+}
+```
+
+
+
+### d. 读写锁
+
+#### i). 读写锁
+
+- 当有一个线程已经持有互斥锁时，互斥锁将所有试图进入临界区的线程都阻塞住。但是考虑一种情形，当前持有互斥锁的线程只是要读访问共享资源，而同时有其它几个线程也想 读取这个共享资源，但是由于互斥锁的排它性，所有其它线程都无法获取锁，也就无法读 访问共享资源了，但是实际上多个线程同时读访问共享资源并不会导致问题。
+- 在对数据的读写操作中，更多的是读操作，写操作较少，例如对数据库数据的读写应用。 为了满足当前能够允许多个读出，但只允许一个写入的需求，线程提供了读写锁来实现。
+- 读写锁的特点：
+  - 如果有其它线程读数据，则允许其它线程执行读操作，但不允许写操作。
+  -  如果有其它线程写数据，则其它线程都不允许读、写操作。
+  - 写是独占的，写的优先级高
+
+#### ii). 头文件
+
+```c
+#include <pthread.h>
+```
+
+#### iii). 读写锁操作函数
+
+```c
+pthread_rwlock_t 	// 读写锁的类型 
+int pthread_rwlock_init(pthread_rwlock_t *restrict rwlock, const pthread_rwlockattr_t *restrict attr);
+int pthread_rwlock_destroy(pthread_rwlock_t *rwlock);
+
+int pthread_rwlock_rdlock(pthread_rwlock_t *rwlock);
+int pthread_rwlock_tryrdlock(pthread_rwlock_t *rwlock);
+
+int pthread_rwlock_wrlock(pthread_rwlock_t *rwlock);
+int pthread_rwlock_trywrlock(pthread_rwlock_t *rwlock);
+
+int pthread_rwlock_unlock(pthread_rwlock_t *rwlock);
+```
+
+
+
+#### iv). 举个例子 - 创建 8 个子线程，其中 3 个写全局变量，5 个读全局变量
+
+```c
+#include <pthread.h>
+#include <stdio.h>
+#include <unistd.h>
+
+int num = 10;
+pthread_rwlock_t rwlock;
+
+void * myread(void *args)
+{
+    while(1) {
+        pthread_rwlock_rdlock(&rwlock);
+        printf("===read, tid : %ld, num : %d\n", pthread_self(), num);
+        pthread_rwlock_unlock(&rwlock);
+        usleep(100);
+    }
+}
+
+void * mywrite(void * args)
+{
+    while(1) {
+        pthread_rwlock_wrlock(&rwlock);
+        num++;
+        printf("++write, tid : %ld, num : %d\n", pthread_self(), num);
+        pthread_rwlock_unlock(&rwlock);
+        usleep(100);
+    }
+
+    pthread_exit(NULL);
+}
+
+int main()
+{
+    pthread_rwlock_init(&rwlock, NULL);
+
+    // 创建3个写线程，5个读线程
+    pthread_t wtids[3], rtids[5];
+    for(int i = 0; i < 3; i++) {
+        pthread_create(&wtids[i], NULL, mywrite, NULL);
+    }
+
+    for(int i = 0; i < 5; i++) {
+        pthread_create(&rtids[i], NULL, myread, NULL);
+    }
+
+    // 设置线程分离
+    for(int i = 0; i < 3; i++) {
+       pthread_detach(wtids[i]);
+    }
+
+    for(int i = 0; i < 5; i++) {
+         pthread_detach(rtids[i]);
+    }
+
+    pthread_rwlock_destroy(&rwlock);
+
+    pthread_exit(NULL);
+
+    return 0;
+}
+```
+
+**运行结果：**
+
+![image-20231128101701526](./assets/image-20231128101701526.png)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
