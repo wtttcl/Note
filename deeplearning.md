@@ -666,7 +666,7 @@ y = torch.squeeze(x)         # 压缩维数为 1 的维度
 y.size() 	# torch.Size([2, 2, 2])
 ```
 
-### 
+### e. 
 
 
 
@@ -692,7 +692,151 @@ self.net = self.net.to(self.device)
 
 
 
-### 
+### g. `torch.arange(start, end, step=1)` - 创建一维张量
+
+```python
+torch.arange(start, end, step=1, dtype=None, layout=torch.strided, device=None, requires_grad=False)
+```
+
+**Parameters：**
+
+- `start` 是起始值。
+- `end` 是结束值（**不包括在生成的张量中**）。
+- `step` 是步长，默认为 1。
+- `dtype` 是生成张量的数据类型。
+- `layout` 是张量的布局。
+- `device` 是张量所在的设备。
+- `requires_grad` 指定是否需要梯度。
+
+**e.g.**
+
+```
+import torch
+
+# 生成从 0 到 9 的一维张量
+tensor = torch.arange(10)
+print(tensor)
+# tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+```
+
+
+
+### e. `torch.meshgrid(x, y)` - 生成一个 2 维网格的坐标矩阵（张量）
+
+```
+torch.meshgrid(*tensors, indexing='ij')
+```
+
+**Parameters：**
+
+- `*tensors` 是一系列张量，每个张量表示一个维度上的坐标值。
+- `indexing` 参数指定生成网格时的索引方式，可以是 'xy' 或 'ij'。默认是 'ij'，即使用矩阵的行和列索引。
+
+**e.g.**
+
+```
+import torch
+
+# 生成 2D 网格
+x = torch.arange(0, 3)
+y = torch.arange(0, 2)
+grid_x, grid_y = torch.meshgrid(x, y)
+
+print(grid_x)
+#tensor([[0, 0],
+#        [1, 1],
+#        [2, 2]])
+
+print(grid_y)
+#tensor([[0, 1],
+#        [0, 1],
+#        [0, 1]])
+```
+
+
+
+### e. `torch.stack(tensors, dim=0)` - 按指定维度堆叠张量
+
+```python
+torch.stack(tensors, dim=0, out=None) -> Tensor
+```
+
+**Parameters：**
+
+- `tensors` 是要堆叠的张量序列（可以是一个元组或列表）。
+- `dim` 是指定堆叠维度的参数。在指定维度上，输入张量的大小必须是一致的。
+- `out` 是可选的输出张量，如果提供，则结果将被写入此张量。
+
+**e.g.**
+
+```
+import torch
+
+# 两个张量
+tensor1 = torch.tensor([1, 2, 3]) 	# [3]
+tensor2 = torch.tensor([4, 5, 6]) 	# [3]
+
+# 在新维度上堆叠
+stacked_tensor = torch.stack((tensor1, tensor2), dim=0)
+
+print(stacked_tensor) 	# [2, 3]
+#tensor([[1, 2, 3],
+#        [4, 5, 6]])
+```
+
+```
+import torch
+
+w = 5
+h = 5
+grid_x, grid_y = torch.meshgrid([torch.arange(w), torch.arange(h)])
+
+# 将xy两部分的坐标拼起来：[5, 5, 2]
+grid_xy = torch.stack([grid_x, grid_y], dim=-1).float()
+# tensor([[[0., 0.],
+#          [1., 0.],
+#          [2., 0.],
+#          [3., 0.],
+#          [4., 0.]],
+
+#         [[0., 1.],
+#          [1., 1.],
+#          [2., 1.],
+#          [3., 1.],
+#          [4., 1.]],
+
+#         [[0., 2.],
+#          [1., 2.],
+#          [2., 2.],
+#          [3., 2.],
+#          [4., 2.]],
+
+#         [[0., 3.],
+#          [1., 3.],
+#          [2., 3.],
+#          [3., 3.],
+#          [4., 3.]],
+
+#         [[0., 4.],
+#          [1., 4.],
+#          [2., 4.],
+#          [3., 4.],
+#          [4., 4.]]])
+```
+
+
+
+### e. 
+
+### e. 
+
+### e. 
+
+### e. 
+
+### e. 
+
+### e. 
 
 <hr style="border:1px #6CA6CD double;">
 
@@ -700,7 +844,27 @@ self.net = self.net.to(self.device)
 
 #### a. `torch.Tensor.item()`
 
-#### b. `torch.Tensor.float()`
+#### b. `torch.Tensor.float()` - 将张量转换为浮点型
+
+为了便于参数更新、梯度计算等操作，最好将所有相关的张量都转换为浮点型。
+
+**e.g.**
+
+```
+def create_grid(self, fmp_size):
+    # 生成一个二维网格
+    ws, hs = fmp_size
+
+    grid_x, grid_y = torch.meshgrid(torch.arange(hs), torch.arange(ws)).float()
+
+    grid_xy = torch.stack(grid_x, grid_y)
+
+    grid_xy = grid_xy.view(-1, 2)
+
+    return grid_xy
+```
+
+
 
 #### c. `torch.Tensor.device()`：返回该 Tensor 所在的设备
 
@@ -714,13 +878,25 @@ self.cuda = torch.cuda.is_available()
 self.net = self.net.to(self.device)
 ```
 
-### e. `torch.Tensor.view()`：一个高级指针，快速操作
+### e. `torch.Tensor.view()`：一个高级指针，快速操作，改变张量形状
 
-用不同的方式解释相同的数据。浅拷贝的同时可以实现 reshape、切片等操作。相当于一个高级的指针。（避免了显式的数据拷贝，可以快速进行 reshape、切片等操作）
+这是一个指向原张量的指针，所以`view` 返回的张量与原始张量共享底层数据，修改一个张量会影响另一个。
+
+在使用 `view` 时，要确保新形状与原始张量包含的元素数量相同，否则会导致错误。另外，**`view` 不会改变底层数据的顺序，而只是重新组织了张量的维度**。如果你需要在张量的拷贝上执行形状变化，可以使用 `torch.reshape`。
+
+```
+torch.Tensor.view(*shape) -> Tensor
+```
+
+**Parameters：**
+
+- `shape` 是一个元组，指定了新张量的形状。
+
+**e.g.**
 
 ```
 t = torch.rand(4, 4)
-b = t.view(2, 8) 	# reshape
+b = t.view(2, 8) 	# 改变形状
 t.storage().data_ptr() == b.storage().data_ptr() 	# t 和 b 指向同一存储空间
 #true
 
