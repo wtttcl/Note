@@ -160,6 +160,30 @@ result = 7 // 3
 print(result)  # 输出：2
 ```
 
+### 4. 生成器表达式 `gen = (x for x in range(10))`
+
+```
+new_gen = (expression for item in itreable if condition)
+```
+
+和列表推导式的区别：
+
+-  `()` 和 `[]`
+- 生成器表达式是一种懒惰（lazy）的方式，它在每次迭代时才计算下一个元素，而不是一次性计算所有元素并将它们存储在内存中。这对于处理大量数据或在不知道要处理的数据量的情况下很有用。
+- 列表推导式会一次性生成一个包含所有元素的列表，这可能会占用大量内存，尤其是当数据量很大时。
+
+**e.g.**
+
+```
+# LeetCode 318
+class Solution:
+    def maxProduct(self, words: List[str]) -> int:
+        mask = [reduce(lambda a, b : a | 1 << (ord(b) - ord('a')), word, 0) for word in words]
+        return max((len(x[1]) * len(y[1]) for x, y in product(zip(mask, words), repeat=2) if (x[0] & y[0]) == 0), default=0)
+```
+
+
+
 ### 5. 列表推导式 `list = [x for x in range(10)]`
 
 ```python
@@ -282,6 +306,36 @@ tensor：`size`描述张量的大小，返回一个tensor.size对象
 当通过 `from module import *` 导入一个模块中的方法时，只有 `__all__` 中指定的方法才能被导入。
 
 如果模块没有定义 `__all__`，默认情况下，`from module import *` 将导入模块中**所有不以下划线开头**的方法。
+
+### reduce - 实现累加
+
+```
+functools.reduce(function, iterable[, initializer])
+```
+
+- `function`: 一个 **接受两个参数（a, b）** 的函数，用于对可迭代对象的元素进行操作。
+- `iterable`: 可迭代对象，例如列表、元组、字符串等。
+- `initializer`（可选）: 初始值，如果提供了该值，它将成为累积的初始值，即，`a = initializer`。
+
+```
+# LeetCode 318
+class Solution:
+    def maxProduct(self, words: List[str]) -> int:
+        mask = [reduce(lambda a, b : a | 1 << (ord(b) - ord('a')), word, 0) for word in words]
+        return max((len(x[1]) * len(y[1]) for x, y in product(zip(mask, words), repeat=2) if (x[0] & y[0]) == 0), default=0)
+```
+
+### product - 生成笛卡尔积
+
+```
+# LeetCode 318
+class Solution:
+    def maxProduct(self, words: List[str]) -> int:
+        mask = [reduce(lambda a, b : a | 1 << (ord(b) - ord('a')), word, 0) for word in words]
+        return max((len(x[1]) * len(y[1]) for x, y in product(zip(mask, words), repeat=2) if (x[0] & y[0]) == 0), default=0)
+```
+
+
 
 ## B. 类内函数
 
