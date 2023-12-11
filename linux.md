@@ -7186,7 +7186,7 @@ typedef unsigned short int sa_family_t;
   #define __SOCKADDR_COMMON_SIZE (sizeof (unsigned short int))
   ```
 
-### e. IP 地址转换 （点分十进制字符串表示 <=> 整数表示）
+### e. IP 地址转换 （点分十进制字符串表示 <=> 整数表示，主机字节序 <=> 网络字节序）
 
 #### 仅适用于 IPV4 的转换函数（旧，很少用）
 
@@ -7194,32 +7194,122 @@ typedef unsigned short int sa_family_t;
 
 ```c
 #include <arpa/inet.h>
-in_addr_t inet_addr(const char *cp);
-int inet_aton(const char *cp, struct in_addr *inp);
-char *inet_ntoa(struct in_addr in);
-```
 
-inet ntop
+struct in_addr
+{
+    in_addr_t s_addr; 	// unsigned int
+};
+typedef unsigned int uint32_t;
+typedef uint32_t in_addr_t;
+
+in_addr_t inet_addr(const char *cp);
+/*
+  参数：
+    - cp：点分十进制格式的 IP 地址
+  
+  返回值：
+    - 调用成功，返回网络字节序整数；调用失败，返回 -1
+  
+  作用：
+    - 将主机字节序的 IPV4 点分十进制转换为网络字节序整数表示
+*/
+int inet_aton(const char *cp, struct in_addr *inp);
+/*
+  参数：
+    - cp：点分十进制格式的 IP 地址
+    - inp：传出参数，保存转换后的网络字节序整数
+  
+  返回值：
+    - 调用成功，返回 0；调用失败，返回 -1
+  
+  作用：
+    - 将主机字节序的 IPV4 点分十进制转换为网络字节序整数表示
+*/
+
+char *inet_ntoa(struct in_addr in);
+/*
+  参数：
+    - in：网络字节序整数
+  
+  返回值：
+    - 调用成功，返回点分十进制格式（网络字节序）调用失败，返回 -1
+  
+  作用：
+    - 将网络字节序整数表示转换为主机字节序的 IPV4 点分十进制
+*/
+```
 
 #### 适用于 IPV4 和 IPV6 的转换函数
 
 ```c
 #include <arpa/inet.h>
+
 // p:点分十进制的IP字符串，n:表示network，网络字节序的整数
+
 int inet_pton(int af, const char *src, void *dst);
-    af:地址族： AF_INET AF_INET6
-    src:需要转换的点分十进制的IP字符串
-    dst:转换后的结果保存在这个里面
+/*
+  参数：
+    - af：要转换成的地址族，e.g. AF_UNIX / AF_INET / AF_INET6
+    - src：要转换的点分十进制格式
+    - dst：传出参数，存储转换后的网络字节序整型
+  
+  返回值：
+    - 调用成功，返回 1；src 为非法地址，返回 0；调用失败，返回 -1
+  
+  作用：
+    - 将点分十进制的 IP 地址转换为网络字节序整型格式
+*/
+
 // 将网络字节序的整数，转换成点分十进制的IP地址字符串
 const char *inet_ntop(int af, const void *src, char *dst, socklen_t size);
-    af:地址族： AF_INET AF_INET6
-    src: 要转换的ip的整数的地址
-    dst: 转换成IP地址字符串保存的地方
-    size：第三个参数的大小（数组的大小）
-    返回值：返回转换后的数据的地址（字符串），和 dst 是一样的
+/*
+  参数：
+    - af：要转换成的地址族，e.g. AF_UNIX / AF_INET / AF_INET6
+    - src：要转换的网络字节序整型
+    - dst：传出参数，存储转换后的点分十进制格式
+    - size：第三个参数的大小（数组的大小）
+  
+  返回值：
+    - 调用成功，返回非 NULL 的指向 dst的指针；调用失败，返回 NULL，并设置错误号
+  
+  作用：
+    - 将网络字节序整型格式转换为点分十进制的 IP 地址
+*/
 ```
 
+#### 举个例子 - IP地址转换函数调用
 
+```
+#include <stdio.h>
+#include <arpa/inet.h>
+
+int main()
+{
+    // create an IP addr
+    char buf[] = "192.168.1.4";
+    unsigned int num = 0;
+
+    // 点分十进制 -》网络字节序的整型
+    inet_pton(AF_INET, buf, &num);  // 第三个参数: 传出参数，存储转换后的网络字节序整型
+
+    unsigned char *p = &num;    // 指针初始化
+
+    printf("%d.%d.%d.%d\n", *p, *(p+1), *(p+2), *(p+3));
+
+    // 网络字节序整型 -》 点分十进制
+    char ip[16] = "";
+    const char * ret = inet_ntop(AF_INET, &num, ip, sizeof(ip));
+
+    printf("ret: %s\n", ret);
+    printf("ip: %s\n", ip);
+
+    return 0;
+}
+```
+
+**运行结果：**
+
+![image-20231208140430238](./assets/image-20231208140430238.png)
 
 ### f. TCP 通信流程
 
@@ -7254,7 +7344,133 @@ const char *inet_ntop(int af, const void *src, char *dst, socklen_t size);
 >    - 发送数据
 > 4. 通信结束，断开连接
 
-### g. 
+### g. 套接字函数
+
+#### i). 头文件
+
+```c
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h> // 包含了这个头文件，上面两个就可以省略
+```
+
+#### ii). socket
+
+```c
+int socket(int domain, int type, int protocol);
+/*
+  参数：
+    - domain：指定通信协议族，如 AF_UNIX、AF_INET、AF_INET6（<sys/socket.h>）
+    - type：通信语义
+      - SOCK_STREAM：提供有序、可靠、双向、基于连接的字节流，如 TCP
+      - SOCK_DGRAM：支持数据报，如 UDP
+    - protocol：
+
+  返回值：
+    - 调用成功，返回新建 socket 的文件描述符；调用失败，返回 -1，并设置错误号。
+
+  作用：
+    - 创建一个套接字 socket
+*/
+```
+
+
+
+#### iii). bind
+
+#### 
+
+```c
+int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
+/*
+  参数：
+    - sockfd：通过 socket 函数得到的 fd
+    - addr：要绑定的 socket 地址，其中封装了 IP 和端口号
+    - addrlen：addr 结构体所占内存大小
+
+  返回值：
+    - 调用成功，返回 0；调用失败，返回 -1，并设置错误号。
+
+  作用：
+    - 绑定 IP 和端口到套接字 socket(fd 存在) 上
+*/
+```
+
+
+
+#### iv). listen
+
+#### 
+
+```c
+int listen(int sockfd, int backlog);
+/*
+  参数：
+    - sockfd：通过 socket 函数得到的 fd
+    - backlog：套接字 sockfd 的挂起连接队列的最大长度
+
+  返回值：
+    - 调用成功，返回 0；调用失败，返回 -1。
+
+  作用：
+    - 将由 sockfd 引用的套接字标记为被动套接字，即用于接受客户端的连接请求
+*/
+```
+
+
+
+#### v). accept
+
+#### 
+
+```c
+int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
+/*
+  参数：
+    - sockfd：通过 socket 函数得到的 fd
+    - addr：传出参数，保存成功连接的客户端地址信息，包括 IP 和端口
+    - addrlen：addr 结构体所占内存大小
+
+  返回值：
+    - 调用成功，返回用于通信的文件描述符；调用失败，返回 -1。
+
+  作用：
+    - 接收客户端连接请求，默认阻塞等待。
+    - 从监听套接字 sockfd 挂起连接队列中提取第一个连接请求，创建一个新的连接套接字，并返回指向该套接字的新文件描述符。新创建的套接字仅用于当前连接，不处于监听状态，原始套接字 sockfd 不受此调用的影响。
+*/
+```
+
+
+
+#### vi). connect
+
+#### 
+
+```c
+int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
+/*
+  参数：
+    - sockfd：用于通信的文件描述符
+    - addr：传出参数，保存成功连接的客户端地址信息，包括 IP 和端口
+    - addrlen：addr 结构体所占内存大小
+
+  返回值：
+    - 调用成功，返回 0；调用失败，返回 -1，并设置错误号。
+  作用：
+    - 将由文件描述符 sockfd 引用的套接字连接到由 addr 指定的地址。
+*/
+```
+
+#### vii). read & write
+
+```c
+ssize_t write(int fd, const void *buf, size_t count); // 写数据
+ssize_t read(int fd, void *buf, size_t count); // 读数据
+```
+
+#### viii). 举个例子 - 服务端和客户端通信
+
+
 
 ### h. UDP 通信
 
