@@ -6922,6 +6922,8 @@ ARP 数据报：
 
 ### a. socket 介绍
 
+- 套接字（socket）是通信端口的抽象。应用程序用套接字描述符访问套接字。
+
 - 所谓 socket（套接字），就是对网络中不同主机上的应用进程之间进行双向通信的端点的抽象。 一个套接字就是网络上进程通信的一端，提供了应用层进程利用网络协议交换数据的机制。从所处的地位来讲，套接字上联应用进程，下联网络协议栈，是应用程序通过网络协议进行通信的接口， 是应用程序与网络协议根进行交互的接口。 
 - socket 可以看成是两个网络应用程序进行通信时，各自通信连接中的端点，这是一个逻辑上的概念。它是网络环境中进程间通信的 API，也是可以被命名和寻址的通信端点，使用中的每一个套接字都有其类型和一个与之相连进程。通信时其中一个网络应用程序将要传输的一段信息写入它所在主机的 socket 中，该 socket 通过与网络接口卡（NIC）相连的传输介质将这段信息送到另外一台主机的 socket 中，使对方能够接收到这段信息。
 - **socket 是由 IP 地址和端口结合的**，提供向应用层进程传送数据包的机制。 socket 本身有“插座”的意思，在 Linux 环境下，用于表示进程间网络通信的特殊文件类型。本质为内核借助缓冲区形成的伪文件。既然是文件，那么理所当然的，我们可以使用文件描述符引用套接字。与管道类似的，Linux 系统将其封装成文件的目的是为了统一接口，使得读写套接字和读写文件的操作一致。区别是管道主要应用于本地进程间通信，而套接字多应用于网络进程间数据的传递。
@@ -6937,11 +6939,11 @@ socket是一套通信的接口，Linux 和 Windows 都有，但是有一些细�
 
 - 字节序分为 **大端字节序（Big-Endian）** 和 **小端字节序（Little-Endian）**。
 
-  - 大端字节序是指一个整数的最高位字节（23 ~ 31 bit）存储在内存的低地址处，低位字节（0 ~ 7 bit）存储在内存的高地址处；
+  - **大端字节序** 是指一个整数的最高位字节（23 ~ 31 bit）存储在内存的低地址处，低位字节（0 ~ 7 bit）存储在内存的高地址处；
 
     <img src="./assets/image-20231206193413241.png" alt="image-20231206193413241" style="zoom:90%;" />
 
-  - 小端字节序则是指整数的高位字节存储在内存的高地址处，而低位字节则存储在内存的低地址处。
+  - **小端字节序** 则是指整数的高位字节存储在内存的高地址处，而低位字节则存储在内存的低地址处。
 
     <img src="./assets/image-20231206193358905.png" alt="image-20231206193358905" style="zoom:90%;" />
 
@@ -6979,19 +6981,20 @@ int main()
 
 #### 网络字节序
 
-- 发送端总是把要发送的数据转换成 **大端字节序** 数据后再发送，而接收端知道对方传送过来的数据总是采用大端字节序，所以接收端可以根据自身采用的字节序决定是否对接收到的数据进行转换（小端机转换，大端机不转换)。
-- 网络字节顺序是 TCP/IP 中规定好的一种数据表示格式，它与具体的 CPU 类型、操作系统等无关，从而可以保证数据在不同主机之间传输时能够被正确解释，**网络字节顺序采用大端排序方式。**
+- 网络协议指定了字节序，在 **TCP/IP 协议栈**中，发送端总是把要发送的数据转换成 **大端字节序** 数据后再发送，而接收端知道对方传送过来的数据总是采用大端字节序，所以接收端可以根据自身采用的字节序决定是否对接收到的数据进行转换（小端机转换，大端机不转换)。
 
-#### 字节序转换函数
+#### TCP/IP 协议栈中的字节序转换函数
 
-- BSD Socket提供了封装好的转换接口，方便程序员使用。包括从主机字节序到网络字节序的转换函数： `htons`、`htonl`；从网络字节序到主机字节序的转换函数：`ntohs`、`ntohl`。
+- 从主机字节序到网络字节序的转换函数： `htons`、`htonl`；
+
+- 从网络字节序到主机字节序的转换函数：`ntohs`、`ntohl`。
 
   ```markdown
   h - host 主机，主机字节序
   to - 转换成什么
   n - network 网络字节序
-  s - unsigned short
-  l - unsigned int
+  s - unsigned short 2字节
+  l - unsigned int 4字节
   ```
 
   ```c
@@ -7060,7 +7063,7 @@ int main()
 
 <img src="./assets/image-20231206201714382.png" alt="image-20231206201714382" style="zoom:90%;" />
 
-### d. socket 地址（本质是一个结构体）
+### d. socket 地址（标识一个特定通信域的套接字端点）
 
 #### 通用 socket 地址
 
@@ -7133,27 +7136,15 @@ typedef unsigned short int sa_family_t;
       sa_family_t sin_family; /* __SOCKADDR_COMMON(sin_) */
       in_port_t sin_port; /* Port number. 端口号*/
       struct in_addr sin_addr; /* Internet address. IP地址*/
-      /* Pad to size of `struct sockaddr'. */
-      unsigned char sin_zero[sizeof (struct sockaddr) - __SOCKADDR_COMMON_SIZE -
-      sizeof (in_port_t) - sizeof (struct in_addr)];
   };
   struct in_addr
   {
       in_addr_t s_addr; 	// unsigned int
   };
-  struct sockaddr_in6
-  {
-      sa_family_t sin6_family;
-      in_port_t sin6_port; /* Transport layer port # */
-      uint32_t sin6_flowinfo; /* IPv6 flow information */
-      struct in6_addr sin6_addr; /* IPv6 address */
-      uint32_t sin6_scope_id; /* IPv6 scope-id */
-  };
   typedef unsigned short uint16_t;
   typedef unsigned int uint32_t;
   typedef uint16_t in_port_t;
   typedef uint32_t in_addr_t;
-  #define __SOCKADDR_COMMON_SIZE (sizeof (unsigned short int))
   ```
 
 - `sockaddr_in6` (IPV6)
@@ -7172,18 +7163,12 @@ typedef unsigned short int sa_family_t;
   /* IPv6 address */
   struct in6_addr
   {
-      union
-      {
-          uint8_t	__u6_addr8[16];
-          uint16_t __u6_addr16[8];
-          uint32_t __u6_addr32[4];
-      } __in6_u;
+  	uint8_t	__u6_addr8[16];
   };
   typedef unsigned short uint16_t;
   typedef unsigned int uint32_t;
   typedef uint16_t in_port_t;
   typedef uint32_t in_addr_t;
-  #define __SOCKADDR_COMMON_SIZE (sizeof (unsigned short int))
   ```
 
 ### e. IP 地址转换 （点分十进制字符串表示 <=> 整数表示，主机字节序 <=> 网络字节序）
@@ -7354,7 +7339,7 @@ int main()
 #include <arpa/inet.h> // 包含了这个头文件，上面两个就可以省略
 ```
 
-#### ii). socket
+#### ii). `socket` - 创建套接字
 
 ```c
 int socket(int domain, int type, int protocol);
@@ -7362,30 +7347,30 @@ int socket(int domain, int type, int protocol);
   参数：
     - domain：指定通信协议族，如 AF_UNIX、AF_INET、AF_INET6（<sys/socket.h>）
     - type：通信语义
-      - SOCK_STREAM：提供有序、可靠、双向、基于连接的字节流，如 TCP
-      - SOCK_DGRAM：支持数据报，如 UDP
-    - protocol：
+      - SOCK_STREAM：提供有序的、可靠的、双向的、面向连接的字节流，如 TCP
+      - SOCK_DGRAM：固定长度的、无连接的、不可靠的报文传递，如 UDP
+    - protocol：默认协议，当 domain 和 type 支持多个协议时，可以指定一个特定协议，一般设为 0。
+      - domain = AF_INET && type == SOCK_STREAM 的默认协议为 TCP；
+      - domain = AF_INET && type == SOCK_DGRAM 的默认协议为 UDP；
 
   返回值：
-    - 调用成功，返回新建 socket 的文件描述符；调用失败，返回 -1，并设置错误号。
+    - 调用成功，返回套接字描述符；调用失败，返回 -1，并设置错误号。
 
   作用：
-    - 创建一个套接字 socket
+    - 创建一个套接字 socket 用来监听
 */
 ```
 
 
 
-#### iii). bind
-
-#### 
+#### iii). `bind` - 关联地址和套接字
 
 ```c
 int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 /*
   参数：
-    - sockfd：通过 socket 函数得到的 fd
-    - addr：要绑定的 socket 地址，其中封装了 IP 和端口号
+    - sockfd：通过 socket 函数得到的 fd（用于监听）
+    - addr：要绑定的 socket 地址，其中封装了 IP 和端口号。强制类型转换成 struct sockaddr * 类型
     - addrlen：addr 结构体所占内存大小
 
   返回值：
@@ -7396,18 +7381,22 @@ int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 */
 ```
 
+![image-20231221105032107](./assets/image-20231221105032107.png)
+
+![image-20231221105047047](./assets/image-20231221105047047.png)
 
 
-#### iv). listen
 
-#### 
+#### iv). `listen` - 服务器宣告它愿意接收连接请求
+
+
 
 ```c
 int listen(int sockfd, int backlog);
 /*
   参数：
     - sockfd：通过 socket 函数得到的 fd
-    - backlog：套接字 sockfd 的挂起连接队列的最大长度
+    - backlog：套接字 sockfd 的挂起连接队列的最大长度。一旦队列满，服务端就会拒绝多余的连接请求。
 
   返回值：
     - 调用成功，返回 0；调用失败，返回 -1。
@@ -7419,9 +7408,9 @@ int listen(int sockfd, int backlog);
 
 
 
-#### v). accept
+#### v). `accept` - 获得连接请求并建立连接
 
-#### 
+
 
 ```c
 int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
@@ -7442,7 +7431,7 @@ int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
 
 
 
-#### vi). connect
+#### vi). `connect` - 客户端与服务端建立连接
 
 #### 
 
@@ -7468,15 +7457,250 @@ ssize_t write(int fd, const void *buf, size_t count); // 写数据
 ssize_t read(int fd, void *buf, size_t count); // 读数据
 ```
 
+vii). shutdown
+
+![image-20231221102422285](./assets/image-20231221102422285.png)
+
+![image-20231221102428417](./assets/image-20231221102428417.png)
+
 #### viii). 举个例子 - 服务端和客户端通信
 
+```c
+// TCP 通信 - 服务器端
+#include <arpa/inet.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
+
+int main()
+{
+    // create socket to listen
+    int lfd = socket(AF_INET, SOCK_STREAM, 0);
+    if(lfd == -1)
+    {
+        perror("socket");
+        exit(-1);
+    }
+
+    // bind
+    struct sockaddr_in saddr;
+    saddr.sin_family = AF_INET;
+    // inet_pton(AF_INET, "101.76.210.102", &saddr.sin_addr.s_addr);     // 网络通信，要将主机字节序转为网络字节序 或"127.0.0.1"
+    saddr.sin_addr.s_addr = INADDR_ANY;     // 0.0.0.0 服务端可能有多个网卡（无线网卡、以太网卡），不同网卡 IP 地址不同，设为 0 表示绑定本机所有网卡，仅服务器端才可以这么写
+    saddr.sin_port = htons(9999);
+    int ret = bind(lfd, (struct sockaddr *)&saddr, sizeof(saddr));
+    if(ret == -1)
+    {
+        perror("bind");
+        exit(-1);
+    }
+
+    // listen
+    ret = listen(lfd, 8);   // 8 最大连接数
+    if(ret == -1)
+    {
+        perror("listen");
+        exit(-1);
+    }
+
+    // accept 默认阻塞直到有客户端连接
+    struct sockaddr_in client_addr;
+    int len = sizeof(client_addr);
+    int cfd = accept(lfd, (struct sockaddr *)& client_addr, &len);  // &len
+    if(cfd == -1)
+    {
+        perror("accept");
+        exit(-1);
+    }
+
+    // 输出客户端的信息
+    char clientIP[16];  // 4 * 3 + 3 + 1
+    inet_ntop(AF_INET, &client_addr.sin_addr.s_addr, clientIP, sizeof(clientIP));
+    unsigned short clinetPort = ntohs(client_addr.sin_port);
+    printf("client IP is: %s, port is: %d\n", clientIP, clinetPort);
+
+    // communicate 
+    char recvBuf[1024] = {0};
+    while(1) 
+    {
+        
+        // 获取客户端的数据
+        int num = read(cfd, recvBuf, sizeof(recvBuf));
+        if(num == -1) 
+        {
+            perror("read");
+            exit(-1);
+        } 
+        else if(num > 0) 
+        {
+            printf("recv client data : %s\n", recvBuf);
+        } 
+        else if(num == 0) // 说明客户端写端关闭，否则应堵塞在 58 行
+        {
+            // 表示客户端断开连接
+            printf("clinet closed...");
+            break;
+        }
+
+        char * data = "hello, i am server";
+        // 给客户端发送数据
+        write(cfd, data, strlen(data));
+    }
+   
+    // 关闭文件描述符
+    close(cfd);
+    close(lfd);
+
+    return 0;
+}
+```
+
+```c
+// TCP 通信 - 客户端
+#include <arpa/inet.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
+
+int main()
+{
+    // create socket
+    int fd = socket(AF_INET, SOCK_STREAM, 0);
+    if(fd == -1)
+    {
+        perror("socket");
+        exit(-1);
+    }
+    // connect
+    struct sockaddr_in saddr;
+    saddr.sin_family = AF_INET;
+    inet_pton(AF_INET, "101.76.210.102", &saddr.sin_addr.s_addr); 
+    saddr.sin_port = htons(9999);
+    int ret = connect(fd, (struct sockaddr *)&saddr, sizeof(saddr));
+    if(ret == -1)
+    {
+        perror("connect");
+        exit(-1);
+    }
+
+    // communicate
+    char recvBuf[1024] = {0};
+    while(1) 
+    {
+        // 给服务端发送数据
+        char * data = "hello, i am client";
+        write(fd, data, strlen(data));
+
+        // 获取客户端的数据
+        int num = read(fd, recvBuf, sizeof(recvBuf));
+        if(num == -1) 
+        {
+            perror("read");
+            exit(-1);
+        } 
+        else if(num > 0) 
+        {
+            printf("recv server data : %s\n", recvBuf);
+        } 
+        else if(num == 0) // 说明客户端写端关闭，否则应堵塞在 58 行
+        {
+            // 表示客户端断开连接
+            printf("server closed...");
+            break;
+        }
+
+        sleep(2);
+        
+    }
+
+    // close
+    close(fd);
+    return 0;
+}
+```
 
 
-### h. UDP 通信
+
+### h. TCP 三次握手
+
+### i. TCP 滑动窗口
+
+### j. TCP 四次挥手
+
+### k. TCP 并发通信
+
+- 一个父进程，多个子进程
+- 父进程负责等待并接受客户端的连接 
+- 子进程完成通信，接受一个客户端连接，就创建一个子进程用于通信。
+
+### l. TCP 状态转换
+
+
+
+### m. 半关闭
+
+### n. UDP 通信
 
 用户数据报协议，面向无连接，可以单播、多播、广播，面向数据报，不可靠。
 
 ![image-20231206214033479](./assets/image-20231206214033479.png)
+
+### o. 端口复用
+
+在服务器和客户端的正常通信期间，如果服务端突然断开连接，服务端会进入 TIME_WAIT 状态，等待两倍报文段寿命后才会释放端口。此时如果服务端想要重新建立连接，会因为端口仍被占用而连接失败，因此引入端口复用。
+
+#### 端口复用的作用
+
+- 防止服务器重启时之前绑定的端口还未被释放
+- ==程序突然退出而系统没有释放端口==
+
+#### setsockopt
+
+
+
+### p. I/O 多路复用（I/O多路转接）简介
+
+- I/O 多路复用 **使得程序能同时监听多个文件描述符**，能够提高程序的性能。
+
+- Linux 下实现 I/O 多路复用的 系统调用主要有 `select`、`poll` 和 `epoll`。
+
+#### i). BIO 模型 - 阻塞等待
+
+![image-20231214145924936](./assets/image-20231214145924936.png)
+
+#### ii). NIO 模型 - 非阻塞忙问询
+
+遍历所有连接的客户端，忙问询查看是否有读写。
+
+![image-20231214150106102](./assets/image-20231214150106102.png)
+
+#### iii). I/O 多路转接技术 - select / poll / epoll
+
+##### - select / poll
+
+![image-20231214150336171](./assets/image-20231214150336171.png)
+
+##### - epoll
+
+![image-20231214150343670](./assets/image-20231214150343670.png)
+
+### q. select
+
+![image-20231214160950758](./assets/image-20231214160950758.png)
+
+### r. poll
+
+
+
+### s. ![image-20231214163926891](./assets/image-20231214163926891.png)
+
+### t. 广播
+
+### u. 组播
+
+### v. 
 
 
 
@@ -7544,6 +7768,10 @@ hello, dup2nihao
 注意：这里 **行数为 0 说明文件中没有换行符**
 
 <img src="./assets/image-20231107153136870.png" alt="image-20231107153136870" style="zoom:90%;" />
+
+## netstat
+
+
 
 # C 注意事项
 
