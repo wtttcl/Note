@@ -40,3 +40,16 @@
 
 3. ==类内成员变量，static 和 const 和 static const 区别。==
 
+
+
+
+
+1. string.h cstring string 的区别
+
+
+
+## 定义和初始化
+
+
+
+## 

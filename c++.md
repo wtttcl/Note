@@ -132,7 +132,12 @@
   - redis连接池/异步redis
   - redis 集群，数据备份
   - 缓存雪崩，缓存击穿
-  - 
+
+
+
+## redis
+
+
 
 
 
@@ -304,7 +309,7 @@
 
 # 分布式
 
-- rpc，grpc，tars, brpc, srpc
+- rpc，grpc，tars,  brpc,  srpc
 - 简单rpc协议设计/框架搭建
 - 分布式锁
 - 协议传输的序列化与反序列化
@@ -314,9 +319,13 @@
 
 
 
+## RPC
 
+RPC：远程过程调用协议（Remote Procedure Call Protocol），可以让我们像调用本地对象一样发起远程调用。
 
+gRPC：一个现代的、高性能、开源的、和语言无关的通用 RPC 框架。基于 HTTP2 协议设计，序列化使用
 
+![image-20240103101018325](./assets/image-20240103101018325.png)
 
 
 

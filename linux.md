@@ -4443,9 +4443,9 @@ int main()
 
 ## 1. 信号的概念
 
-- **信号** 是 linux 进程间通信的最古老的方式之一，是 **事件发生时对进程的通知机制**，有时也称为 **软件中断**。信号是在软件层次上对中断机制的一种模拟，是一种 **异步通信** 的方式。
+- **信号** 是 linux 进程间通信的最古老的方式之一，是 ==**事件发生时对进程的通知机制**==，有时也称为 **软件中断**。信号是在软件层次上对中断机制的一种模拟，是一种 **异步通信** 的方式。
 
-- 信号可以使一个正在运行的进程被另一个正在运行的异步进程中断，转而处理某一个突发事件。
+- ==**信号可以使一个正在运行的进程被另一个正在运行的异步进程中断，转而处理某一个突发事件。**==
 
 - 发往进程的信号通常是源于内核。
 
@@ -4457,7 +4457,7 @@ int main()
 - 使用信号的目的：
 
   - 通知进程发生了某特定事件；
-  - 强迫进程执行他代码中的信号处理程序。
+  - 强迫进程执行代码中的信号处理程序。
 
 - 信号的特点：
 
@@ -4481,13 +4481,13 @@ int main()
 
 <img src="./assets/image-20231112141920288.png" alt="image-20231112141920288" style="zoom:80%;" />
 
-- `SIGKILL`：无条件终止任何进程（除僵尸进程外）。**该信号不能被忽略、处理和阻塞。**
+- `SIGKILL`：无条件终止任何进程（**除僵尸进程外**）。**该信号不能被忽略、处理和阻塞。**
 - `SIGSEGV`：只是进程进行了无效内存访问（段错误）。终止进程并产生 `core` 文件（记录进程异常信息）。
 - `SIGPIPE`：向一个没有读端的管道写数据。终止进程。
 
 <img src="./assets/image-20231112141949098.png" alt="image-20231112141949098" style="zoom:80%;" />
 
-- `SIGCHID`：子进程退出时，父进程会接收到这个信号。忽略这个信号。
+- `SIGCHID`：子进程退出时，父进程会接收到这个信号。默认忽略这个信号。
 - `SIGCONT`：若进程已经停止，则使其继续运行。进程继续或忽略这个信号。
 - `SIGSTOP`：停止进程执行。**该信号不能被忽略、处理和阻塞。**
 
@@ -4501,7 +4501,7 @@ int main()
 
 - Ign：当前进程忽略该信号。e.g. 子进程执行退出，父进程接收到 `SIGCHLD` 信号，执行 Ign 动作。
 
-- Stop：赞同当前进程。
+- Stop：暂停当前进程。
 
 - Cont：继续执行当前被暂停的进程。
 
@@ -4537,9 +4537,9 @@ int main()
 
 ### b. 信号的状态
 
-- 产生
-- 未决（还没有到达要通知的进程）
-- 递达
+- 产生（信号已产生，但还未被目标进程处理）
+- 未决（信号已被目标进程接收，但目标进程还处理该信号，可能阻塞了该信号，也可能在执行别的更高优先级的操作）
+- 递达（信号已经递交给目标进程的信号处理程序）
 
 ## 4. 信号的相关函数
 
@@ -4620,6 +4620,7 @@ void abort(void);
 
   作用：
     - 向当前进程发送信号 SIGABRT。等价于 kill(getpid(), SIGABRT)
+    - 终止进程并产生 core 文件
 */
 ```
 
@@ -4628,56 +4629,6 @@ void abort(void);
 #### iv). 举个例子 - 父进程调用 `kill` 函数杀死子进程
 
 ```c
-/*
-#include <sys/types.h>
-#include <signal.h>
-
-int kill(pid_t pid, int sig);
-  参数：
-    - pid：要发送信号的进程号。
-      - pid > 0：向进程号为 pid 的进程发送信号。
-      - pid = 0：向和当前进程同组的所有进程发送信号。
-      - pid = -1：向所有可以接收该信号的进程发送信号（init 除外）。
-      - pid < -1：向进程组为 |pid| 的所有进程发送信号。
-    - sig：要发送的信号（一般取宏）。
-
-  返回值：
-    - 调用成功，返回 0；调用失败，返回 -1，并设置 errno。
-
-  作用：
-    - 向指定进程发送指定信号。
-    - 杀死当前进程：kill(getpid(), 9)
-    - 杀死父进程：kill(getppid(), 9)
-
-
-
-#include <signal.h>
-
-int raise(int sig);
-  参数：
-    - sig：要发送的信号（一般取宏）。
-
-  返回值：
-    - 调用成功，返回 0；调用失败，返回非零值。
-
-  作用：
-    - 向当前进程发送指定信号。等价于 kill(getpid(), sig)
-
-
-#include <stdlib.h>
-
-void abort(void);
-  参数：
-    - void
-
-  返回值：
-    - 没有返回值。
-
-  作用：
-    - 向当前进程发送信号 SIGABRT。等价于 kill(getpid(), SIGABRT)
-
-*/
-
 #include <sys/types.h>
 #include <signal.h>
 #include <unistd.h>
@@ -4729,7 +4680,7 @@ unsigned int alarm(unsigned int seconds);
     - seconds：倒计时的时长（秒）。若secconds = 0，则取消设置的定时器或定时器无效。
 
   返回值：
-    - 若之前设置了定时器，返回前一个定时器剩余的时间；若之前没有设置定时器，返回 0。
+    - 若之前设置了定时器，返回前一个定时器剩余的时间，取消之前的定时器并设置新定时器；若之前没有设置定时器，返回 0。
 
   功能：
     - 设置定时器。当定时器倒计时结束时，alarm 函数会给当前进程发送一个 SIGALARM 信号。
@@ -4740,27 +4691,9 @@ unsigned int alarm(unsigned int seconds);
 */
 ```
 
-#### iii). 举个例子
+#### iii). 举个例子 - 多次设置定时器
 
 ```c
-/*
-#include <unistd.h>
-
-unsigned int alarm(unsigned int seconds);
-  参数：
-    - seconds：倒计时的时长（秒）。若secconds = 0，则取消设置的定时器或定时器无效。
-
-  返回值：
-    - 若之前设置了定时器，返回前一个定时器剩余的时间；若之前没有设置定时器，返回 0。
-
-  功能：
-    - 设置定时器。当定时器倒计时结束时，alarm 函数会给当前进程发送一个 SIGALARM 信号。
-    - SIGALARM ：默认终止当前的进程。
-    - 每一个进程都有且只有唯一的一个定时器。以最后设置的定时器为准。
-    - 定时器遵从自然定时法，是不阻塞的，也就是说，即便当前进程阻塞，定时器仍然在倒计时。
-	- 取消设置的定时器：alarm(0);
-*/
-
 #include <unistd.h>
 #include <stdio.h>
 
@@ -4805,7 +4738,7 @@ int main()
 
 运行结果：
 
-若带上 `printf`，共数93114个数；若重定向到文件里（即去掉 I/O 调用， `./alarm >> a.txt`），共数12223680个数。
+若带上 `printf`，共数 93114 个数；若重定向到文件里（即去掉 I/O 调用， `./alarm >> a.txt`），共数 12223680 个数。
 
 ### c. `setitimer`
 
@@ -4875,7 +4808,7 @@ int main()
 
     printf("timer start...\n");
 
-    getchar();  // 仅仅是为了阻塞进程，没有别的作用
+    getchar();  // 仅仅是为了阻塞进程看输出信息，没有别的作用
 
     return 0;
 }
@@ -4910,7 +4843,7 @@ sighandler_t signal(int signum, sighandler_t handler);
 */
 ```
 
-#### iii). 举个例子
+#### iii). 举个例子 - 利用信号捕捉函数自定义信号处理程序
 
 ```c
 #include <sys/time.h>
@@ -4957,7 +4890,7 @@ int main()
 }
 ```
 
-运行结果：
+**运行结果：**
 
 - 忽略信号，进程被 `getchar()` 阻塞：
 
@@ -4975,10 +4908,10 @@ int main()
 
 ### a. 信号集
 
-- 多个信号可以使用一个称为信号集的数据结构来表示，其数据类型为 `sigset_t`。
-- 对于每一个进程，其 PCB 中包含了两个信号集：**阻塞信号集**（为 1 表示阻塞信号的处理（仅阻塞进程对接收的信号操作，而不阻塞进程）， 为 0 表示可以处理该信号）和 **未决信号集**（为 1 表示信号已经发送给进程但还未被处理）。这两个信号集都是由 **位图机制** 来实现的（1位表示一个信号，内核中的信号共62个，用64位来表示所有的信号）。
+- 多个信号可以使用一个称为 **信号集** 的数据结构来表示，其数据类型为 `sigset_t`。
+- 对于每一个进程，其 PCB 中包含了两个信号集：**阻塞信号集**（为 1 表示阻塞信号处理（仅阻塞进程对接收的信号操作，而不阻塞进程）， 为 0 表示可以处理该信号）和 **未决信号集**（为 1 表示信号已经发送给进程但还未被处理）。这两个信号集都是由 **位图机制** 来实现的（1位表示一个信号，内核中的信号共62个，用64位来表示所有的信号）。
 - **对于未决信号集中为 1 的信号，首先在阻塞信号集中查看：若阻塞信号集中为 1，则进程不处理信号，直到阻塞信号集中变为 0 ；若阻塞信号集中为 0，则进程处理该信号。**
-- 操作系统不允许用户直接对两个信号集进行位操作，所以需要自定义一个集合，借助 **信号集操作函数** 来修改 PCB 中的阻塞信号集。
+- **操作系统不允许用户直接对内核中的两个信号集进行位操作**，所以需要自定义一个集合，借助 **信号集操作函数** 来修改 PCB 中的阻塞信号集。
 
 <img src="./assets/image-20231113153901441.png" alt="image-20231113153901441" style="zoom:80%;" />
 
@@ -5022,7 +4955,7 @@ int sigfillset(sigset_t *set);
     - 调用成功返回 0；调用失败返回 -1。
 
   作用：
-    - 将阻塞信号集中的所有的标志位置为 1。
+    - 将阻塞信号集中的所有的标志位置为 1。阻塞所有信号，即不处理任何未决信号。
 */
 ```
 
@@ -5087,7 +5020,7 @@ int sigismember(const sigset_t *set, int signum);
 
 
 
-#### vii). 举个例子
+#### vii). 举个例子 - 制作自己的阻塞信号集
 
 ```C
 #include <signal.h>
@@ -5186,7 +5119,7 @@ int sigpending(sigset_t *set);
 
 
 
-#### iv).  举个例子
+#### iv).  举个例子 - 修改内核区的阻塞信号集
 
 ```c
 #include <signal.h>
@@ -5305,7 +5238,7 @@ int main()
     struct sigaction my_sigaction;
     my_sigaction.sa_flags = 0;
     my_sigaction.sa_handler = myAlarm;
-    sigemptyset(&my_sigaction.sa_mask);     // 临时清空阻塞信号集
+    sigemptyset(&my_sigaction.sa_mask);     // 清空临时阻塞信号集
     sigaction(SIGALRM, &my_sigaction, NULL);
 
 
@@ -5327,7 +5260,7 @@ int main()
     }
     printf("定时器开始了...\n");
 
-    // getchar();   sigaction 函数不能用 getchar() 函数实现进程阻塞 - https://blog.csdn.net/fan_Mk/article/details/123638182
+    // getchar();   sigaction 函数不能用 getchar() 函数实现进程阻塞 - https://blog.csdn.net/fan_Mk/article/details/123638182 默认的 sa_flags 会中断 I/O
     while(1);
     
     return 0;
@@ -5342,9 +5275,11 @@ int main()
 
 ### a. `SIGCHLD` 信号产生的条件
 
-- 子进程终止时（发送给父进程，可以用来处理僵尸进程）
+- **子进程终止时（发送给父进程，可以用来处理僵尸进程）**
 - 子进程接收到 SIGSTOP 信号停止时
 - 子进程处在停止态，接收到 SIGCONT 信号被唤醒时
+
+
 
 ### b. 利用 `SIGCHLD` 信号回收僵尸进程
 
@@ -5365,6 +5300,7 @@ void myFun(int num)
 {
     printf("Caught signal %d\n", num);
     // 回收僵尸进程
+    // 当接收到 SIGCHLD 信号时，可能有一个或多个子进程终止了，所以要循环执行回收子进程。
     while(1)
     {
         int ret = wait(NULL);     // 在处理 SIGCHLD 信号的时候，处理所有的僵尸进程。
@@ -5374,6 +5310,7 @@ void myFun(int num)
             break;
     }
     // wait(NULL);     // 若在父进程接收到 SIGCHLD 信号，在处理 SIGCHLD 信号的同时，还有其他子进程结束，并向父进程发送信号，此时，由于未决信号集中 SIGCHLD 对应的仍然是 1，因此这个新的子进程会被忽略，由于 wait 函数一次只能回收一个子进程，所以该新子进程不会被成功回收。
+    // 也就是说，未决信号集中 SIGCHLD 从 0 变为 1 的次数 不一定等于 终止的子进程的数量。
 }
 
 int main()
@@ -5413,7 +5350,7 @@ int main()
 }
 ```
 
-运行结果：
+**运行结果：**
 
 如果不用 `while` 循环，仅调用 `wait(NULL)`，会出现没有被成功回收的僵尸进程：
 
@@ -5421,7 +5358,7 @@ int main()
 
 ![image-20231115151324703](./assets/image-20231115151324703.png)
 
-运行结果：
+**运行结果：**
 
 调用 `while` 执行 `wait(NULL)`
 
@@ -5506,45 +5443,34 @@ int main()
 
 <img src="./assets/image-20231115154224312.png" alt="image-20231115154224312" style="zoom:67%;" />
 
+
+
 # 线程（thread）
 
 ## 1. 线程概念
 
-<<<<<<< HEAD
-# 线程（thread）
-
-## 1. 线程概念
-
-- 线程是允许应用程序并发执行多个任务的一种机制。
+- 线程是允许应用程序并发执行多个任务的一种机制。（传统意义上的 UNIX 进程只是多线程的一个特例，该进程只包含一个线程）
 - 一个进程可以包含多个线程。
-- 同一个程序中的所有线程均会独立执行相同程序。
-- 线程是允许应用程序并发执行多个任务的一种机制。（传统意义上的 UNIX 进程只是多线程的一个特例，该进程质保函一个线程）
-
->>>>>>> f31ac2017ee0693e50a4bd38460436014c21231f
-
->>>>>>> 8a192446d2bbeed7cd5b719090be0d2a92e96691
-
-- 一个进程可以包含多个线程。
-
-- 同一个程序中的所有线程均会独立执行相同程序（？），且 **共享同一份全局内存区域**，其中包括 **初始化数据段**、**未初始化数据段**、**堆内存段**。
-
+- 同一个程序中的所有线程均会独立执行相同程序==（线程池只能执行一种任务吗？只能调用一个worker函数？）==，且 **共享同一份全局内存区域**，其中包括 **初始化数据段**、**未初始化数据段**、**堆内存段**。
 - 进程是 CPU 分配资源的最小单位，线程是操作系统调度执行的最小单位。
-
-- 线程是轻量级的进程（LWP：Light Weight Process），在 Linux 环境下线程的本质仍然是进程（？）。
-
+- 线程是轻量级的进程（LWP：Light Weight Process），==在 Linux 环境下线程的本质仍然是进程==？。
 - 查看指定进程的 LWP 号：`ps -LF pid` 。
-
 - Linux 自带的线程库不够完善，目前使用的线程库是 Red Hat 开展的 NPTL（Native POSIX Thread Library） 项目，这是 Linux 线程的一个新实现，同时也符合 POSXI 标准。查看当前 pthread 库版本：`getconf GNU_LIBPTHREAD_VERSION`
 
-  <img src="C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20231122200222540.png" alt="image-20231122200222540" style="zoom:80%;" />
 
-## 2. 线程产生的原因
 
-- 进程间需要通信才能共享信息。即便是利用父子进程之间的继承来实现通信，调用 `fork` 来创建进程的代价依然很高。即便使用写时复制技术，仍然需要复制内存页表、文件描述符表等多种进程属性。
-- 线程之间可以通过共享的内存区域进行通信。
-- 线程的创新比进程要快很多。
+
+## 2. 线程产生的原因 / 线程与进程的区别
+
+- 进程间的信息难以共享。进程间需要通信才能共享信息。即便是利用父子进程之间的继承来实现通信，调用 `fork` 来创建进程的代价依然很高。即便使用写时复制技术，仍然需要复制内存页表、文件描述符表等多种进程属性。
+- 线程之间可以通过 ==**共享的内存区域**==进行通信。
+- 线程的创建比进程要快很多。==线程是共享虚拟地址空间的，无需采用写时复制来赋值内存，也无需复制页表。==
+
+
 
 ## 3. 线程的共享资源和非共享资源
+
+![image-20240102103749365](./assets/image-20240102103749365.png)
 
 ### a. 共享资源
 
@@ -5565,17 +5491,19 @@ int main()
 - 实时调度策略和优先级
 - 栈、本地变量和函数的调用链接信息
 
+
+
 ## 4. 线程操作函数 （-pthread）
 
 ### a. `pthread_t` 和 `pthread_self`
 
-#### i). 头文件
+**i). 头文件**
 
 ```c
 #include <pthread.h>
 ```
 
-#### ii). 函数体
+**ii). 函数体**
 
 ```c
 typedef unsigned long int pthread_t; 	// long int 型，输出用 %ld
@@ -5599,24 +5527,24 @@ pthread_t pthread_self(void);
 
 
 
-### b.== `pthread_create`==
+### b. `pthread_create` （创建线程时要指定线程要执行的任务）
 
-#### i). 头文件
+**i). 头文件**
 
 ```c
 #include <pthread.h>
 ```
 
-#### ii). 函数体
+**ii). 函数体**
 
 ```c
 int pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_routine) (void *), void *arg);
 /*
   参数：
-    - thread：传出参数，子线程号
+    - thread：传出参数，存储子线程号
     - attr：指定子线程的属性。一般使用 NULL，即使用默认属性创建线程
     - strat_routine：子线程执行的函数
-    - arg：strat_routine() 的参数
+    - arg：strat_routine() 的参数， void* 类型，记得强制转换
 
   返回值：
     - 调用成功，返回 0；调用失败，返回 error number，且 *thread 未定义
@@ -5629,13 +5557,13 @@ int pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*start_
 */
 ```
 
-#### iii). 举个例子 - 创建一个子线程
+**iii). 举个例子 - 创建一个子线程**
 
 ```c
 // 一般情况下,main函数所在的线程我们称之为主线程（main线程），其余创建的线程称之为子线程。
 
 #include <pthread.h>
-#include <string.h>
+#include <string.h> 	// strerror
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>     // exit
@@ -5669,41 +5597,41 @@ int main()
 ```
 
 - 主线程和子线程的执行顺序不确定，涉及时间片抢占。
-- 子线程只会执行 `start_routine()`，不会执行 `main` 函数中接下来的
-- 代码段。
+- 子线程只会执行 `start_routine()`，不会执行 `main` 函数中接下来的代码段。
 
-#### iv) 运行结果：
+**iv) 运行结果：**
 
-![image-20231122204210231](C:\Users\Administrator\AppData\Roaming\Typora\typora-user-images\image-20231122204210231.png)
+<img src="./assets/image-20240102101904673.png" alt="image-20240102101904673" style="zoom:80%;" />
 
-### c. `pthread_exit`
 
-#### i). 头文件
+
+### c. `pthread_exit` （终止线程）
+
+**i). 头文件**
 
 ```c
 #include <pthread.h>
 ```
 
-#### ii). 函数体
+**ii). 函数体**
 
 ```c
 void pthread_exit(void *retval);
 /*
   参数：
-    - retval：传出参数，其值可在 pthread_join() 中获取到。不需要则传入 NULL。
+    - retval：指向线程的返回值的指针。其值可在 pthread_join() 中获取到。不需要则传入 NULL。
 
   返回值：
     - 无返回值
 
   作用：
-    - 终止调用线程，并通过 retval 返回一个值（可供同一进程中调用 pthread_join(3) 的另一线程使用）
-	========== (TODO:) ==========
-    - 线程终止并不会释放进程共享资源（例如互斥锁、条件变量、信号量和文件描述符），并且使用 atexit(3) 注册的函数也不会被调用。
-    - 在进程中的最后一个线程终止后，进程将通过调用 exit(3) 以零的退出状态终止；因此，进程共享的资源将被释放，同时使用 atexit(3) 注册的函数将被调用。
+    - 终止调用线程，并通过 retval 返回一个值（可供同一进程中调用 pthread_join() 的另一线程使用）
+    - 线程终止并不会释放进程共享资源（例如互斥锁、条件变量、信号量和文件描述符），此时线程会进入一个"zombie"状态，变成僵尸进程。
+    - 直到有其他线程调用了 pthread_join()，线程的资源就会被释放，这包括线程的栈空间、线程控制块等。
 */
 ```
 
-#### iii). 举个例子 - 主线程退出，子线程正常执行
+**iii). 举个例子 - 主线程退出，子线程正常执行**
 
 ```c
 #include <stdio.h>
@@ -5713,12 +5641,13 @@ void pthread_exit(void *retval);
 
 void * callback(void * arg)
 {
+    int return_val = 5;
     for(int i = 0; i < 5; i++)
     {
        printf("%d, This is child thread, tid = %ld\n", i,pthread_self());
        sleep(1);
     }
-    
+    pthread_exit((void *)&return_val);
 }
 int main()
 {
@@ -5748,23 +5677,25 @@ int main()
 
 **运行结果：**
 
-- 主线程退出不影响其他线程执行，因此主线程退出后，子线程正常执行：
+- **主线程退出不影响其他线程执行**，因此主线程退出后，子线程正常执行：
 
 <img src="./assets/image-20231124095227109.png" alt="image-20231124095227109" style="zoom: 80%;" />
 
-- 主线程和子线程的执行次序还是根据时间片抢占来的，并不是说一定是主线程执行完后子线程才能执行。
+- **主线程和子线程的执行次序还是根据时间片抢占来的**，并不是说一定是主线程执行完后子线程才能执行。
 
 <img src="./assets/image-20231124095254147.png" alt="image-20231124095254147" style="zoom:80%;" />
 
-### d. `pthread_equal`
 
-#### i). 头文件
+
+### d. `pthread_equal` （比较两个线程的线程号）
+
+**i). 头文件**
 
 ```c
 #include <pthread.h>
 ```
 
-#### ii). 函数体
+**ii). 函数体**
 
 ```c
 int pthread_equal(pthread_t t1, pthread_t t2);
@@ -5783,22 +5714,22 @@ int pthread_equal(pthread_t t1, pthread_t t2);
 
 
 
-### e. `pthread_join`
+### e. `pthread_join` （回收线程）
 
-#### i). 头文件
+**i). 头文件**
 
 ```c
 #include <pthread.h>
 ```
 
-#### ii). 函数体
+**ii). 函数体**
 
 ```c
 int pthread_join(pthread_t thread, void **retval);
 /*
   参数：
     - thread：需要回收的子线程号
-    - retval：接收子线程退出时的返回值 - 指向 pthread_exit(void *retval) 的 retval 的指针，指针的指针，二级指针。
+    - retval：接收子线程退出时的返回值 - 指向 pthread_exit(void *retval) 的 retval 的指针，指针的指针，二级指针。指向 pthread_exit(void *retval) 中 *retval 的指针。
 
   返回值：
     - 调用成功，返回 0；调用失败，返回错误号。
@@ -5813,11 +5744,11 @@ int pthread_join(pthread_t thread, void **retval);
 */
 ```
 
-#### iii). 举个例子 - 主线程回收子线程资源
+**iii). 举个例子 - 主线程回收子线程资源**
 
 **1. 首先不涉及子线程返回状态，测试 `pthread_join()` 阻塞执行 效果：**
 
-```
+```c
 #include <stdio.h>
 #include <pthread.h>
 #include <string.h>
@@ -5863,7 +5794,7 @@ int main()
 }
 ```
 
-执行结果：
+**执行结果：**
 
 - 阻塞执行。主线程等待子线程结束：
 
@@ -5877,7 +5808,7 @@ int main()
 #include <string.h>
 #include <unistd.h>
 
-int value = 10;
+int value = 10; 	// 子线程的返回状态要先设置为全局变量
 void * callback(void * arg)
 {
     // int value = 10;
@@ -5912,6 +5843,7 @@ int main()
         printf("error: %s\n", errstr);
     }
     printf("回收子线程资源回收, exit num = %d\n", *thread_retval);
+    //  printf("回收子线程资源回收, exit num = %d\n", **(&thread_retval));
 
     // 主线程退出不会影响子线程执行，因此子线程继续执行
     pthread_exit(NULL);     // 主线程退出
@@ -5921,26 +5853,26 @@ int main()
 }
 ```
 
-执行结果：
+**执行结果：**
 
 <img src="./assets/image-20231124110615942.png" alt="image-20231124110615942" style="zoom:90%;" />
 
-#### iv). `(void **) retval` 解释
+**iv). `(void **) retval` 解释**
 
 - 在 `pthread_exit(void *retval)` 函数中，要求返回状态要是一个指针，也就是说，要将返回状态存储到内存单元中，然后返回一个指向返回状态的指针。
 - 而在 `pthread_join(pthread_t thread, void **retval)` 中，传出参数 `retval` 是一个二级指针，即，指针的指针，他是 **指向存储子线程返回状态的指针的指针**，因此是一个二级指针。
-- 这就要求了，子线程的返回状态不能是子线程执行函数中的局部变量，否则**在子线程退出时，栈空间的局部变量会被释放，从而导致父线程读取返回状态出错**。
-- 因此，返回状态可以先定义为 **全局变量**。
+- 这就要求了，**子线程的返回状态不能是子线程执行函数中的局部变量**，否则**在子线程退出时，栈空间的局部变量会被释放，从而导致父线程读取返回状态出错**。
+- 因此，**返回状态可以先定义为全局变量**。
 
-### f. `pthread_detach`
+### f. `pthread_detach` （分离线程）
 
-#### i). 头文件
+**i). 头文件**
 
 ```c
 #include <pthread.h>
 ```
 
-#### ii). 函数体
+**ii). 函数体**
 
 ```c
 int pthread_detach(pthread_t thread);
@@ -5962,7 +5894,7 @@ int pthread_detach(pthread_t thread);
 */
 ```
 
-#### iii). 举个例子 - 链接已经分离的子线程
+**iii). 举个例子 - 连接已经分离的子线程**
 
 ```c
 #include <pthread.h>
@@ -6009,19 +5941,23 @@ int main()
 }
 ```
 
-执行结果：报错。
+**执行结果：**
+
+报错。
 
 ![image-20231124144439376](./assets/image-20231124144439376.png) 
 
-### g. `pthread_cancel`
 
-#### i). 头文件
+
+### g. `pthread_cancel` （取消线程）
+
+**i). 头文件**
 
 ```c
 #include <pthread.h>
 ```
 
-#### ii). 函数体
+**ii). 函数体**
 
 ```c
 int pthread_cancel(pthread_t thread);
@@ -6048,10 +5984,9 @@ int pthread_cancel(pthread_t thread);
 
       - 在取消线程终止后，使用 pthread_join() 连接该线程将获取 PTHREAD_CANCELED 作为线程的退出状态。
 */
-
 ```
 
-#### iii). 举个例子 - 主线程取消子线程
+**iii). 举个例子 - 主线程取消子线程**
 
 ```c
 
@@ -6101,17 +6036,19 @@ int main()
 
 <img src="./assets/image-20231127123421392.png" alt="image-20231127123421392" style="zoom:90%;" />
 
-### h. `pthread_attr_`
+
+
+### h. `pthread_attr_` （设置线程属性）
 
 ![image-20231128200640358](./assets/image-20231128200640358.png)
 
-#### i). 头文件
+**i). 头文件**
 
 ```c
 #include <pthread.h>
 ```
 
-#### ii). 函数体
+**ii). 函数体**
 
 ```c
 int pthread_attr_init(pthread_attr_t *attr);
@@ -6176,7 +6113,7 @@ int pthread_attr_setdetachstate(pthread_attr_t *attr, int detachstate);
 */
 ```
 
-#### iii). 举个例子 - 主线程中先设置子线程属性，再创建子线程
+**iii). 举个例子 - 主线程中先设置子线程属性，再创建子线程**
 
 ```c
 #include <pthread.h>
@@ -6241,6 +6178,8 @@ int main()
 
 ![image-20231127130845525](./assets/image-20231127130845525.png)
 
+
+
 ## 5. 线程同步
 
 ### a. 线程同步
@@ -6265,15 +6204,17 @@ int main()
 
   <img src="./assets/image-20231127131815774.png" alt="image-20231127131815774" style="zoom:80%;" />
 
+
+
 ### b. 互斥锁
 
-#### i). 头文件
+**i). 头文件**
 
 ```c
 #include <pthread.h>
 ```
 
-#### ii). 函数体
+**ii). 函数体**
 
 ```c
 pthread_mutex_t 	// 互斥量结构体
@@ -6306,7 +6247,7 @@ int pthread_mutex_init(pthread_mutex_t *restrict mutex, const pthread_mutexattr_
 int pthread_mutex_destroy(pthread_mutex_t *mutex);
 /*
   参数：
-    - mutex
+    - mutex：要释放的互斥量
 
   返回值：
     - 调用成功，返回 0；调用失败，返回错误号。
@@ -6359,9 +6300,7 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex);
 */
 ```
 
-
-
-#### iii). 举个例子 - 创建三个子线程，主线程管理和回收子线程，子线程共同买卖50张票。
+**iii). 举个例子 - 创建三个子线程，主线程管理和回收子线程，子线程共同买卖50张票。**
 
 ```c
 #include <pthread.h>
@@ -6418,14 +6357,16 @@ int main()
 
 <img src="./assets/image-20231128095845517.png" alt="image-20231128095845517" style="zoom:80%;" />
 
+
+
 ### c. 死锁
 
 - 一个线程需要同时访问两个或更多不同的共享资源，而每个资源又都由不同的互斥量管理。当超过一个线程加锁同一组互斥量时，就有可能发生死锁。
 - 两个或两个以上的进程在执行过程中，因争夺共享资源而造成的一种互相等待的现象， 若无外力作用，它们都将无法推进下去。此时称系统处于死锁状态或系统产生了死锁。
 - 死锁的几种场景： 
   - 忘记释放锁（死锁其他获取锁的线程）
-  - 重复加锁（自己死锁自己）
-  - 多线程多锁，抢占锁资源
+  - **重复加锁（自己死锁自己）**
+  - ==多线程多锁，抢占锁资源==
 
 <img src="./assets/image-20231128100459661.png" alt="image-20231128100459661" style="zoom:80%;" />
 
@@ -6435,7 +6376,7 @@ int main()
 #include <unistd.h>
 
 // 创建2个互斥量
-pthread_mutex_t mutex1, mutex2;
+pthread_mutex_t mutex1, mutex2; 	// 全局变量，在静态存储区，线程共享
 
 void * workA(void * arg) {
 
@@ -6491,22 +6432,22 @@ int main() {
 
 ### d. 读写锁
 
-#### i). 读写锁
+**i). 读写锁**
 
-- 当有一个线程已经持有互斥锁时，互斥锁将所有试图进入临界区的线程都阻塞住。但是考虑一种情形，当前持有互斥锁的线程只是要读访问共享资源，而同时有其它几个线程也想 读取这个共享资源，但是由于互斥锁的排它性，所有其它线程都无法获取锁，也就无法读 访问共享资源了，但是实际上多个线程同时读访问共享资源并不会导致问题。
+- 当有一个线程已经持有互斥锁时，互斥锁将所有试图进入临界区的线程都阻塞住。但是考虑一种情形，当前持有互斥锁的线程只是要读访问共享资源，而同时有其它几个线程也想 读取这个共享资源，但是由于互斥锁的排它性，所有其它线程都无法获取锁，也就无法读访问共享资源了，但是实际上多个线程同时读访问共享资源并不会导致问题。
 - 在对数据的读写操作中，更多的是读操作，写操作较少，例如对数据库数据的读写应用。 为了满足当前能够允许多个读出，但只允许一个写入的需求，线程提供了读写锁来实现。
 - 读写锁的特点：
   - 如果有其它线程读数据，则允许其它线程执行读操作，但不允许写操作。
   -  如果有其它线程写数据，则其它线程都不允许读、写操作。
-  - 写是独占的，写的优先级高
+  - **写是独占的，写的优先级高。**
 
-#### ii). 头文件
+**ii). 头文件**
 
 ```c
 #include <pthread.h>
 ```
 
-#### iii). 读写锁操作函数
+**iii). 读写锁操作函数**
 
 ```c
 pthread_rwlock_t 	// 读写锁的类型 
@@ -6522,11 +6463,11 @@ int pthread_rwlock_trywrlock(pthread_rwlock_t *rwlock);
 int pthread_rwlock_unlock(pthread_rwlock_t *rwlock);
 ```
 
-
-
-#### iv). 举个例子 - 创建 8 个子线程，其中 3 个写全局变量，5 个读全局变量
+**iv). 举个例子 - 创建 8 个子线程，其中 3 个写全局变量，5 个读全局变量**
 
 ```c
+// 创建 8 个子线程，其中 3 个写全局变量，5 个读全局变量
+
 #include <pthread.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -6538,8 +6479,17 @@ void * myread(void *args)
 {
     while(1) {
         pthread_rwlock_rdlock(&rwlock);
-        printf("===read, tid : %ld, num : %d\n", pthread_self(), num);
-        pthread_rwlock_unlock(&rwlock);
+        if(num == 100)
+        {
+            pthread_rwlock_unlock(&rwlock);
+            pthread_exit(NULL);
+        }
+        else
+        {
+            printf("===read, tid : %ld, num : %d\n", pthread_self(), num);
+            pthread_rwlock_unlock(&rwlock);
+        }
+        
         usleep(100);
     }
 }
@@ -6548,13 +6498,19 @@ void * mywrite(void * args)
 {
     while(1) {
         pthread_rwlock_wrlock(&rwlock);
-        num++;
-        printf("++write, tid : %ld, num : %d\n", pthread_self(), num);
-        pthread_rwlock_unlock(&rwlock);
+        if(num == 100)
+        {
+            pthread_rwlock_unlock(&rwlock);
+            pthread_exit(NULL);
+        }
+        else
+        {
+            num++;
+            printf("++write, tid : %ld, num : %d\n", pthread_self(), num);
+            pthread_rwlock_unlock(&rwlock);    
+        }
         usleep(100);
     }
-
-    pthread_exit(NULL);
 }
 
 int main()
@@ -6571,15 +6527,24 @@ int main()
         pthread_create(&rtids[i], NULL, myread, NULL);
     }
 
-    // 设置线程分离
+    // // 设置线程分离
+    // for(int i = 0; i < 3; i++) {
+    //    pthread_detach(wtids[i]);
+    // }
+
+    // for(int i = 0; i < 5; i++) {
+    //      pthread_detach(rtids[i]);
+    // }
+
+    // 回收线程
     for(int i = 0; i < 3; i++) {
-       pthread_detach(wtids[i]);
+       pthread_join(wtids[i], NULL);
     }
 
     for(int i = 0; i < 5; i++) {
-         pthread_detach(rtids[i]);
+         pthread_join(rtids[i], NULL);
     }
-
+    
     pthread_rwlock_destroy(&rwlock);
 
     pthread_exit(NULL);
@@ -6592,32 +6557,33 @@ int main()
 
 ![image-20231128101701526](./assets/image-20231128101701526.png)
 
+
+
 ### e. 条件变量
 
 - 条件变量不是锁
-- 
+- 配合互斥量使用，实现线程同步。
 
-
-
-#### i
-
-
-
-
-
-
-
-#### `pthread_cond_wait`
-
-i). 头文件
+**i). 头文件**
 
 ```c
 #include <pthread.h>
 ```
 
-ii). 函数体
+**ii). 函数体**
 
 ```c
+pthread_cond_t 	// 条件变量类型
+```
+
+```c
+// 初始化条件变量
+int pthread_cond_init(pthread_cond_t *restrict cond, const pthread_condattr_t *restrict attr);
+
+// 释放条件变量
+int pthread_cond_destroy(pthread_cond_t *cond);
+
+// 阻塞线程等待
 int pthread_cond_wait(pthread_cond_t *restrict cond, pthread_mutex_t *restrict mutex);
 /*
     参数：
@@ -6625,15 +6591,33 @@ int pthread_cond_wait(pthread_cond_t *restrict cond, pthread_mutex_t *restrict m
     - mutex：指向互斥锁的指针
 
   作用：
-    - 阻塞调用线程，直到有其他线程调用 pthread_cond_signal 或 pthread_cond_broadcast 唤醒调用线程。被唤醒后，它会重新获取 mutex，并继续执行。
-    
-    
+    - 阻塞调用线程，直到有其他线程调用 pthread_cond_signal 或 pthread_cond_broadcast 唤醒调用线程。被唤醒后，它会重新获取 mutex，并继续执行。 
+    - 在阻塞调用线程期间，pthread_cond_wait 会释放锁，以允许其他线程访问临界区；直到另一个线程通过调用 pthread_cond_signal 或 pthread_cond_broadcast 发送信号，通知线程重新获得锁。
 */
+
+// 阻塞线程等待指定时间
+int pthread_cond_timedwait(pthread_cond_t *restrict cond, pthread_mutex_t *restrict mutex, const struct timespec *restrict abstime);
+/*
+  参数：
+    - cond: 指向要等待的条件变量的指针。
+	- mutex: 指向与条件变量关联的互斥锁的指针。
+	- abstime: 指定等待的绝对时间。
+	
+  作用：
+    - 允许调用线程在指定的 abstime 时间内等待条件变量
+    - 如果在等待期间条件变量被满足，或者在超时之前收到信号（通过 pthread_cond_signal 或 pthread_cond_broadcast 发送信号），则函数返回 0。如果超时，函数返回 ETIMEDOUT。
+*/
+
+// 唤醒一个等待的线程
+int pthread_cond_signal(pthread_cond_t *cond);
+
+// 唤醒所有等待的线程
+int pthread_cond_broadcast(pthread_cond_t *cond);
 ```
 
-iii). 使用步骤
+**iii). 使用注意**
 
-在使用该系统调用时，应当遵循以下步骤：
+在使用 `pthread_cond_wait` 系统调用时，应当遵循以下步骤：
    - 获取互斥锁 `mutex`，以确保条件变量操作的原子性。
    - 检查条件是否满足。如果条件满足，不需要等待，直接执行后续操作。
    - 如果条件不满足，调用 `pthread_cond_wait` 阻塞当前线程，同时释放 `mutex`。
@@ -6658,7 +6642,233 @@ void *thread_function(void *arg) {
 }
 ```
 
-iv).  
+**iv).  举个例子 - 生产者 - 消费者模型**
+
+```c
+#include <stdio.h>
+#include <pthread.h>
+#include <stdlib.h>
+
+pthread_mutex_t mutex;
+pthread_cond_t m_cond;
+
+struct Node{
+    int num;
+    struct Node* next;
+};
+
+struct Node* head = NULL;
+
+void * producer(void * args)
+{
+    // 不断地创建新的节点，插入到链表头
+    while(1)
+    {
+        pthread_mutex_lock(&mutex);
+        struct Node * newNode = (struct Node *)malloc(sizeof(struct Node));
+        newNode->next = head;
+        head = newNode;
+        newNode->num = rand() % 1000;
+        printf("add new node: %d, tid: %ld\n", newNode->num, pthread_self());
+
+        // 生产，唤醒消费者
+        pthread_cond_signal(&m_cond);
+
+        pthread_mutex_unlock(&mutex);
+        usleep(100);
+    }
+    return NULL;
+}
+
+void * customer(void * args)
+{
+    // 删除链表头结点
+    while(1)
+    {
+        pthread_mutex_lock(&mutex);
+        struct Node* tmp = head;
+        if(head == NULL)
+        {
+            pthread_cond_wait(&m_cond, &mutex);
+        }
+        else
+        {
+            // 执行
+            head = head->next;
+            printf("del node: %d, tid: %ld\n", tmp->num, pthread_self());
+            free(tmp);
+        }
+        pthread_mutex_unlock(&mutex);
+        usleep(100);
+    }
+    return NULL;
+}
+
+int main()
+{
+    pthread_mutex_init(&mutex, NULL);
+    pthread_cond_init(&m_cond, NULL);
+
+    // create 5 producers and 5 customers
+    pthread_t producers[5], customers[5];
+
+    for(int i = 0; i < 5; i++)
+    {
+        pthread_create(&producers[i], NULL, producer, NULL);
+        pthread_create(&customers[i], NULL, customer, NULL);
+    }
+
+    for(int i = 0; i < 5; i++)
+    {
+        pthread_join(&producers[i], NULL);
+        pthread_join(&customers[i], NULL);
+    }
+
+    pthread_cond_destroy(&m_cond);
+    pthread_mutex_destroy(&mutex);
+
+    pthread_exit(NULL);
+}
+```
+
+
+
+### f. 信号量
+
+**i). 头文件**
+
+```c
+#include <pthread.h>
+```
+
+**ii). 函数体**
+
+```c
+sem_t 	// 互斥量结构体
+```
+
+```c
+// 初始化信号量
+int sem_init(sem_t *sem, int pshared, unsigned int value);
+/*
+  参数：
+    - sem : 指向信号量变量的指针
+    - pshared : 0 用在线程间 ，非 0 用在进程间
+    - value : 信号量中的值
+*/
+
+// 释放信号量
+int sem_destroy(sem_t *sem);
+    - 释放资源
+
+// 若信号量 > 0，使信号量 - 1；若信号量 = 0，阻塞线程。（维护信号量不小于 0）
+int sem_wait(sem_t *sem);
+
+// 尝试加锁
+int sem_trywait(sem_t *sem);
+
+// 使线程阻塞等待指定时间
+int sem_timedwait(sem_t *sem, const struct timespec *abs_timeout);
+
+// 使信号量 + 1
+int sem_post(sem_t *sem);
+
+// 获取信号量的值，存储在 sval 中
+int sem_getvalue(sem_t *sem, int *sval);
+```
+
+**iii). 举个例子 - 生产者 - 消费者模型**
+
+```c
+#include <stdio.h>
+#include <pthread.h>
+#include <stdlib.h>
+#include <semaphore.h>
+
+pthread_mutex_t mutex;
+sem_t psem, csem;
+
+struct Node{
+    int num;
+    struct Node* next;
+};
+
+struct Node* head = NULL;
+
+void * producer(void * args)
+{
+    // 不断地创建新的节点，插入到链表头
+    while(1)
+    {
+        sem_wait(&psem);    // 缓冲区是否有空 =》信号量是否大于 0
+
+        pthread_mutex_lock(&mutex);
+        struct Node * newNode = (struct Node *)malloc(sizeof(struct Node));
+        newNode->next = head;
+        head = newNode;
+        newNode->num = rand() % 1000;
+        printf("add new node: %d, tid: %ld\n", newNode->num, pthread_self());
+        pthread_mutex_unlock(&mutex);
+
+        // 生产一个产品，唤醒消费者
+        sem_post(&csem);
+
+        usleep(100);
+    }
+    return NULL;
+}
+
+void * customer(void * args)
+{
+    // 删除链表头结点
+    while(1)
+    {
+        sem_wait(&csem);
+
+        pthread_mutex_lock(&mutex);
+        struct Node* tmp = head;
+        head = head->next;
+        printf("del node: %d, tid: %ld\n", tmp->num, pthread_self());
+        free(tmp);
+        pthread_mutex_unlock(&mutex);
+
+        // 消费一个产品，唤醒生产者生产
+        sem_post(&psem);
+        usleep(100);
+    }
+    return NULL;
+}
+
+int main()
+{
+    pthread_mutex_init(&mutex, NULL);
+    sem_init(&psem, 0, 8);  // 设置生产者缓冲区容量为 8
+    sem_init(&csem, 0, 0);  // 消费者初始可消费产品数量为 0
+
+    // create 5 producers and 5 customers
+    pthread_t producers[5], customers[5];
+
+    for(int i = 0; i < 5; i++)
+    {
+        pthread_create(&producers[i], NULL, producer, NULL);
+        pthread_create(&customers[i], NULL, customer, NULL);
+    }
+
+    for(int i = 0; i < 5; i++)
+    {
+        pthread_join(&producers[i], NULL);
+        pthread_join(&customers[i], NULL);
+    }
+
+    sem_destroy(&psem);
+    sem_destroy(&csem);
+    pthread_mutex_destroy(&mutex);
+
+    pthread_exit(NULL);
+}
+```
+
+
 
 
 
@@ -7727,6 +7937,177 @@ int main()
 
 
 ==c不支持函数重载==
+
+# 阻塞 / 非阻塞、同步 / 异步
+
+# linux 五种IO 模型
+
+
+
+# Web Server
+
+
+
+# HTTP 协议 （应用层协议）
+
+超文本传输协议（Hypertext Transfer Protocol，HTTP）是一个简单的请求 - 响应协议，它通常运行在 TCP 之上。它指定了客户端可能发送给服务器什么样的消息以及得到什么样的响应。请求和响应消息的头以 ASCII 形式给出；而消息内容则具有一个类似 MIME 的格式。HTTP是万维网的数据通信的基础。
+
+## HTTP 请求/响应的步骤
+
+1. 客户端连接到 Web 服务器 一个HTTP客户端，通常是浏览器，与 Web 服务器的 HTTP 端口（默认为 80 ）建立一个 TCP 套接字连接。例如，http://www.baidu.com。（URL）
+2.  发送 HTTP 请求 通过 TCP 套接字，客户端向 Web 服务器发送一个文本的请求报文，一个请求报文由请求行、请求 头部、空行和请求数据 4 部分组成。 
+3. 服务器接受请求并返回 HTTP 响应 Web 服务器解析请求，定位请求资源。服务器将资源复本写到 TCP 套接字，由客户端读取。一个 响应由状态行、响应头部、空行和响应数据 4 部分组成。 
+4. 释放连接 TCP 连接 若 connection 模式为 close，则服务器主动关闭 TCP连接，客户端被动关闭连接，释放 TCP 连 接；若connection 模式为 keepalive，则该连接会保持一段时间，在该时间内可以继续接收请求; 
+5. 客户端浏览器解析 HTML 内容 客户端浏览器首先解析状态行，查看表明请求是否成功的状态代码。然后解析每一个响应头，响应 头告知以下为若干字节的 HTML 文档和文档的字符集。客户端浏览器读取响应数据 HTML，根据 HTML 的语法对其进行格式化，并在浏览器窗口中显示。 例如：在浏览器地址栏键入URL，按下回车之后会经历以下流程： 1. 浏览器向 DNS 服务器请求解析该 URL 中的域名所对应的 IP 地址; 2. 解析出 IP 地址后，根据该 IP 地址和默认端口 80，和服务器建立 TCP 连接; 3. 浏览器发出读取文件（ URL 中域名后面部分对应的文件）的 HTTP 请求，该请求报文作为 TCP 三 次握手的第三个报文的数据发送给服务器; 4. 服务器对浏览器请求作出响应，并把对应的 HTML 文本发送给浏览器; 5. 释放 TCP 连接; 6. 浏览器将该 HTML 文本并显示内容。
+
+## HTTP 请求报文格式
+
+![image-20231229143836923](./assets/image-20231229143836923.png)
+
+## HTTP 响应报文格式
+
+![image-20231229143859451](./assets/image-20231229143859451.png)
+
+## HTTP 请求方法
+
+1. GET：向指定的资源发出“显示”请求。使用 GET 方法应该只用在读取数据，而不应当被用于产生“副 作用”的操作中，例如在 Web Application 中。其中一个原因是 GET 可能会被网络蜘蛛等随意访 问。
+2. HEAD：与 GET 方法一样，都是向服务器发出指定资源的请求。只不过服务器将不传回资源的本文 部分。它的好处在于，使用这个方法可以在不必传输全部内容的情况下，就可以获取其中“关于该 资源的信息”（元信息或称元数据）。 
+3. POST：向指定资源提交数据，请求服务器进行处理（例如提交表单或者上传文件）。数据被包含 在请求本文中。这个请求可能会创建新的资源或修改现有资源，或二者皆有。 
+4. PUT：向指定资源位置上传其最新内容。
+5. DELETE：请求服务器删除 Request-URI 所标识的资源。 
+6. TRACE：回显服务器收到的请求，主要用于测试或诊断。 
+7. OPTIONS：这个方法可使服务器传回该资源所支持的所有 HTTP 请求方法。用'*'来代替资源名称， 向 Web 服务器发送 OPTIONS 请求，可以测试服务器功能是否正常运作。 
+8. CONNECT：HTTP/1.1 协议中预留给能够将连接改为管道方式的代理服务器。通常用于SSL加密服 务器的链接（经由非加密的 HTTP 代理服务器）。
+
+## HTTP 状态码
+
+所有HTTP响应的第一行都是状态行，依次是当前HTTP版本号，3位数字组成的状态代码，以及描述状态 的短语，彼此由空格分隔。 
+
+状态代码的第一个数字代表当前响应的类型： 
+
+- 1xx消息——请求已被服务器接收，继续处理 
+- 2xx成功——请求已成功被服务器接收、理解、并接受 
+- 3xx重定向——需要后续操作才能完成这一请求 
+- 4xx请求错误——请求含有词法错误或者无法被执行 
+- 5xx服务器错误——服务器在处理某个正确请求时发生错误 
+
+![image-20231229144711030](./assets/image-20231229144711030.png)
+
+虽然 RFC 2616 中已经推荐了描述状态的短语，例如"200 OK"，"404 Not Found"，但是WEB开发者仍 然能够自行决定采用何种短语，用以显示本地化的状态描述或者自定义信息。
+
+
+
+
+
+# 服务器编程基本框架
+
+
+
+![image-20231229145205105](./assets/image-20231229145205105.png)
+
+![image-20231229145233252](./assets/image-20231229145233252.png)
+
+I/O 处理单元是服务器管理客户连接的模块。它通常要完成以下工作：等待并接受新的客户连接，接收 客户数据，将服务器响应数据返回给客户端。但是数据的收发不一定在 I/O 处理单元中执行，也可能在 逻辑单元中执行，具体在何处执行取决于事件处理模式。
+
+ 一个逻辑单元通常是一个进程或线程。它分析并处理客户数据，然后将结果传递给 I/O 处理单元或者直接发送给客户端（具体使用哪种方式取决于事件处理模式）。服务器通常拥有多个逻辑单元，以实现对多个客户任务的并发处理。 
+
+网络存储单元可以是数据库、缓存和文件，但不是必须的。 
+
+请求队列是各单元之间的通信方式的抽象。I/O 处理单元接收到客户请求时，需要以某种方式通知一个 逻辑单元来处理该请求。同样，多个逻辑单元同时访问一个存储单元时，也需要采用某种机制来协调处理竞态条件。请求队列通常被实现为池的一部分。
+
+
+
+# 两种高效的事件处理模式
+
+服务器程序通常需要处理三类事件：**I/O 事件**、**信号** 及 **定时事件**。
+
+有两种高效的事件处理模式：**Reactor** 和 **Proactor**。同步 I/O 模型通常用于实现 Reactor 模式，异步 I/O 模型通常用于实现 Proactor 模式。
+
+## Reactor 模式
+
+要求主线程（I/O处理单元）只负责监听文件描述符上是否有事件发生，有的话就立即将该事件通知工作 线程（逻辑单元），将 socket 可读可写事件放入请求队列，交给工作线程处理。除此之外，主线程不做任何其他实质性的工作。读写数据，接受新的连接，以及处理客户请求均在工作线程中完成。
+
+使用同步 I/O（以 epoll_wait 为例）实现的 Reactor 模式的工作流程是：
+
+1. 主线程往 epoll 内核事件表中注册 socket 上的读就绪事件。 
+2. 主线程调用 epoll_wait 等待 socket 上有数据可读。 
+3. 当 socket 上有数据可读时， epoll_wait 通知主线程。主线程则将 socket 可读事件放入请求队列。 
+4. 睡眠在请求队列上的某个工作线程被唤醒，它从 socket 读取数据，并处理客户请求，然后往 epoll 内核事件表中注册该 socket 上的写就绪事件。 
+5. 当主线程调用 epoll_wait 等待 socket 可写。 
+6. 当 socket 可写时，epoll_wait 通知主线程。主线程将 socket 可写事件放入请求队列。 
+7. 睡眠在请求队列上的某个工作线程被唤醒，它往 socket 上写入服务器处理客户请求的结果。
+
+![image-20231229145848994](./assets/image-20231229145848994.png)
+
+## Proactor 模式
+
+Proactor 模式将所有 I/O 操作都交给主线程和内核来处理（进行读、写），工作线程仅仅负责业务逻 辑。使用异步 I/O 模型（以 aio_read 和 aio_write 为例）实现的 Proactor 模式的工作流程是：
+
+1. 主线程调用 aio_read 函数向内核注册 socket 上的读完成事件，并告诉内核用户读缓冲区的位置， 以及读操作完成时如何通知应用程序（这里以信号为例）。 
+2. 主线程继续处理其他逻辑。 
+3. 当 socket 上的数据被读入用户缓冲区后，内核将向应用程序发送一个信号，以通知应用程序数据 已经可用。
+4. 应用程序预先定义好的信号处理函数选择一个工作线程来处理客户请求。工作线程处理完客户请求 后，调用 aio_write 函数向内核注册 socket 上的写完成事件，并告诉内核用户写缓冲区的位置，以 及写操作完成时如何通知应用程序。 
+5. 主线程继续处理其他逻辑。 
+6. 当用户缓冲区的数据被写入 socket 之后，内核将向应用程序发送一个信号，以通知应用程序数据 已经发送完毕。 
+7. 应用程序预先定义好的信号处理函数选择一个工作线程来做善后处理，比如决定是否关闭 socket。
+
+![image-20231229145921556](./assets/image-20231229145921556.png)
+
+### 模拟 Proactor 模式
+
+使用同步 I/O 方式模拟出 Proactor 模式。原理是：主线程执行数据读写操作，读写完成之后，主线程向 工作线程通知这一”完成事件“。那么从工作线程的角度来看，它们就直接获得了数据读写的结果，接下 来要做的只是对读写的结果进行逻辑处理。 使用同步 I/O 模型（以 epoll_wait为例）模拟出的 Proactor 模式的工作流程如下：
+
+1. 主线程往 epoll 内核事件表中注册 socket 上的读就绪事件。 
+2. 主线程调用 epoll_wait 等待 socket 上有数据可读。 
+3. 当 socket 上有数据可读时，epoll_wait 通知主线程。主线程从 socket 循环读取数据，直到没有更 多数据可读，然后将读取到的数据封装成一个请求对象并插入请求队列。
+4. 睡眠在请求队列上的某个工作线程被唤醒，它获得请求对象并处理客户请求，然后往 epoll 内核事 件表中注册 socket 上的写就绪事件。 
+5. 主线程调用 epoll_wait 等待 socket 可写。 
+6. 当 socket 可写时，epoll_wait 通知主线程。主线程往 socket 上写入服务器处理客户请求的结果。
+
+![image-20231229150114817](./assets/image-20231229150114817.png)
+
+
+
+# 线程池
+
+- 线程池是由服务器预先创建的一组子线程，线程池中的线程数量一般和 CPU （核）数量差不多。线程池中的所有子线程都运行相同的代码。
+- 当有新任务到来时，主线程将通过某种方式选择线程池中的某一个子线程为之服务。（比动态地创建新子线程的代价小）
+- 主线程选择子线程的方式：
+  - 随机算法
+  - Round Robin （轮流选取）算法。
+- 主线程和子线程通过一个共享的工作队列来同步，子线程都睡眠在该工作队列上。当有新的任务到来时，主线程将任务添加到工作队列中。这将唤醒正在等待任务的子线程，不过只有一个子线程将获得新任务的”接管权“，它可以从工作队列中取出任务并执行之，而其他子线程将继续睡眠在工作队列上。
+
+<img src="./assets/image-20240103093314405.png" alt="image-20240103093314405"  />
+
+
+
+# 有限状态机
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
