@@ -8152,61 +8152,64 @@ int main()
 
 ### ![image-20231214163926891](./assets/image-20231214163926891.png)
 
-```
+```c
 #include <poll.h>
+
 struct pollfd {
-int fd; /* 委托内核检测的文件描述符 */
-short events; /* 委托内核检测文件描述符的什么事件 */
-short revents; /* 文件描述符实际发生的事件 */
+    int fd; /* 委托内核检测的文件描述符 */
+    short events; /* 委托内核检测文件描述符的什么事件 */
+    short revents; /* 文件描述符实际发生的事件 */
 };
+
 struct pollfd myfd;
 myfd.fd = 5;
 myfd.events = POLLIN | POLLOUT;
+
 int poll(struct pollfd *fds, nfds_t nfds, int timeout);
-- 参数：
-- fds : 是一个struct pollfd 结构体数组，这是一个需要检测的文件描述符的集合
-- nfds : 这个是第一个参数数组中最后一个有效元素的下标 + 1
-- timeout : 阻塞时长
-0 : 不阻塞
--1 : 阻塞，当检测到需要检测的文件描述符有变化，解除阻塞
->0 : 阻塞的时长
-- 返回值：
--1 : 失败
->0（n） : 成功,n表示检测到集合中有n个文件描述符发生变化
+/*
+  参数：
+	- fds: struct pollfd 结构体数组，是存储需要检测的文件描述符的集合。
+	- nfds: fds 中最后一个有效元素的下标 + 1
+	- timeout: 阻塞时长
+		设为 0: 不阻塞
+		设为 -1: 阻塞，当检测到需要检测的文件描述符有变化，解除阻塞。
+		设为 > 0: 表示阻塞的时长
+	- 返回值：
+		-1: 调用失败
+		> 0（n）: 成功，n 表示检测到集合中有 n 个文件描述符发生变化。
+*/
 ```
 
-- 每次调用 `select` 都要将 `fd_set` 从用户态拷贝到内核态，在要监听的文件描述符较多时，时间开销较大。
-- 每次调用 `select`，`select` 都会在内核遍历 `fd_set`，在要监听的文件描述符较多时，时间开销较大。
+- 每次调用 `poll` 都要将 `fds` 从用户态拷贝到内核态，在要监听的文件描述符较多时，时间开销较大。
+- 每次调用 `poll`，`poll` 都会在内核遍历 `fds`，在要监听的文件描述符较多时，时间开销较大。
 - 需要在用户态遍历寻找进行 I/O 操作的文件描述符。
+- 
 
 ### s. `epoll`
 
-- 调用 epoll_create 在内核区创建一个 epoll 实例。
-- 基于 epoll_create 返回的文件描述符，对内核中的 epoll 实例进行操作。
+- 调用 `epoll_create` 在内核区创建一个 `epoll` 实例。
+- 基于 `epoll_create` 返回的文件描述符，对内核中的 `epoll` 实例进行操作。
 
 
 
 ![image-20240110163555754](./assets/image-20240110163555754.png)
 
-```
+```c
 #include <sys/epoll.h>
 // 创建一个新的epoll实例。在内核中创建了一个数据，这个数据中有两个比较重要的数据，一个是需要检测的文件描述符的信息（红黑树），还有一个是就绪列表，存放检测到数据发送改变的文件描述符信息（双向链表）。
 int epoll_create(int size);
+/*
 - 参数：
 size : 目前没有意义了。随便写一个数，必须大于0
 - 返回值：
 -1 : 失败
 > 0 : 文件描述符，操作epoll实例的
-Epoll 的工作模式：
-LT 模式 （水平触发）
-假设委托内核检测读事件 -> 检测fd的读缓冲区
-读缓冲区有数据 - > epoll检测到了会给用户通知
-a.用户不读数据，数据一直在缓冲区，epoll 会一直通知
-b.用户只读了一部分数据，epoll会通知
-c.缓冲区的数据读完了，不通知
-LT（level - triggered）是缺省的工作方式，并且同时支持 block 和 no-block socket。在这
-种做法中，内核告诉你一个文件描述符是否就绪了，然后你可以对这个就绪的 fd 进行 IO 操
-作。如果你不作任何操作，内核还是会继续通知你的。
+*/
+```
+
+
+
+```c
 typedef union epoll_data {
 void *ptr;
 int fd;
@@ -8223,31 +8226,48 @@ epoll_data_t data; /* User data variable */
 - EPOLLERR
 // 对epoll实例进行管理：添加文件描述符信息，删除信息，修改信息
 int epoll_ctl(int epfd, int op, int fd, struct epoll_event *event);
-- 参数：
-- epfd : epoll实例对应的文件描述符
-- op : 要进行什么操作
-EPOLL_CTL_ADD: 添加
-EPOLL_CTL_MOD: 修改
-EPOLL_CTL_DEL: 删除
-- fd : 要检测的文件描述符
-- event : 检测文件描述符什么事情
+/*
+  参数：
+    - epfd : epoll实例对应的文件描述符
+    - op : 要进行什么操作
+        EPOLL_CTL_ADD: 添加
+        EPOLL_CTL_MOD: 修改
+        EPOLL_CTL_DEL: 删除
+    - fd : 要检测的文件描述符
+    - event : 检测文件描述符什么事情
+*/
 // 检测函数
 int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int
 timeout);
-- 参数：
-- epfd : epoll实例对应的文件描述符
-- events : 传出参数，保存了发送了变化的文件描述符的信息
-- maxevents : 第二个参数结构体数组的大小
-- timeout : 阻塞时间
-- 0 : 不阻塞
-- -1 : 阻塞，直到检测到fd数据发生变化，解除阻塞
-- > 0 : 阻塞的时长（毫秒）
-- 返回值：
-- 成功，返回发送变化的文件描述符的个数 > 0
-- 失败 -1
+/*
+  参数：
+	- epfd : epoll实例对应的文件描述符
+    - events : 传出参数，保存了发送了变化的文件描述符的信息
+    - maxevents : 第二个参数结构体数组的大小
+    - timeout : 阻塞时间
+        - 0 : 不阻塞
+        - -1 : 阻塞，直到检测到fd数据发生变化，解除阻塞
+        - > 0 : 阻塞的时长（毫秒）
+    - 返回值：
+        - 成功，返回发送变化的文件描述符的个数 > 0
+        - 失败 -1
+*/
 ```
 
+`epoll` 的两种工作模式
 
+- LT 模式（水平触发）
+
+  - level - triggered。缺省的工作模式。同时支持 block 和 non-block socket。
+
+  - epoll 会在文件描述符上的状态仍然为就绪时不断地通知程序。即使程序读写了一部分数据，只要文件描述符上的状态仍然是就绪，epoll 就会持续地通知程序。
+  - 程序可以不立即处理事件。
+
+- ET 模式（边沿触发）
+
+  - epoll 只在文件描述符状态发生变化时才通知程序。即使程序读写了一部分数据，epoll 也不会再次通知程序。
+
+  - 程序需要及时处理事件。
 
 ### t. 广播
 
