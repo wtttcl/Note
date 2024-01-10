@@ -381,7 +381,7 @@ class Solution:
         return max((len(x[1]) * len(y[1]) for x, y in product(zip(mask, words), repeat=2) if (x[0] & y[0]) == 0), default=0)
 ```
 
-
+![image-20240109104417121](./assets/image-20240109104417121.png)
 
 ## B. 类内函数
 
