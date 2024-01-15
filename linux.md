@@ -7859,14 +7859,33 @@ int main()
 
 ### o. 端口复用
 
-在服务器和客户端的正常通信期间，如果服务端突然断开连接，服务端会进入 TIME_WAIT 状态，等待两倍报文段寿命后才会释放端口。此时如果服务端想要重新建立连接，会因为端口仍被占用而连接失败，因此引入端口复用。
+在服务器和客户端的正常通信期间，如果 **服务端** 突然断开连接，==服务端会进入 `TIME_WAIT` 状态，等待两倍报文段寿命后才会释放原绑定端口==。此时如果服务端想要重新建立连接（重启），会因为端口仍被占用而连接失败，因此引入端口复用。
+
+**ATTENTION：端口复用需要在服务器绑定端口（`bind`）之前设置。**
 
 #### 端口复用的作用
 
-- 防止服务器重启时之前绑定的端口还未被释放
+- 防止服务器重启时之前绑定的端口还未被释放。
 - ==程序突然退出而系统没有释放端口==
 
-#### setsockopt
+```c
+#include <sys/types.h>
+#include <sys/socket.h>
+
+int setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t optlen);
+/*
+  参数：
+    - sockfd：要操作的文件描述符
+    - level：选项所属的协议层，通用套接字选项为 SOL_SOCKET
+    - optname：要设置的选项的名称。
+      - SO_REUSEADDR：允许绑定到相同的地址。
+      - SO_REUSEPORT：允许绑定到相同的地址和端口。
+    - optval：指向新选项值的指针。
+      - 1：可以复用
+      - 0：不可以复用
+    - optlen：optval 参数的大小。
+*/
+```
 
 
 
@@ -8183,7 +8202,8 @@ int poll(struct pollfd *fds, nfds_t nfds, int timeout);
 - 每次调用 `poll` 都要将 `fds` 从用户态拷贝到内核态，在要监听的文件描述符较多时，时间开销较大。
 - 每次调用 `poll`，`poll` 都会在内核遍历 `fds`，在要监听的文件描述符较多时，时间开销较大。
 - 需要在用户态遍历寻找进行 I/O 操作的文件描述符。
-- 
+
+
 
 ### s. `epoll`
 
@@ -8196,65 +8216,182 @@ int poll(struct pollfd *fds, nfds_t nfds, int timeout);
 
 ```c
 #include <sys/epoll.h>
-// 创建一个新的epoll实例。在内核中创建了一个数据，这个数据中有两个比较重要的数据，一个是需要检测的文件描述符的信息（红黑树），还有一个是就绪列表，存放检测到数据发送改变的文件描述符信息（双向链表）。
+
 int epoll_create(int size);
 /*
-- 参数：
-size : 目前没有意义了。随便写一个数，必须大于0
-- 返回值：
--1 : 失败
-> 0 : 文件描述符，操作epoll实例的
+  参数：
+    - size : 目前没有意义了。随便写一个数，必须大于0。
+    
+  返回值：
+	- -1：调用失败，并设置错误号。
+	- > 0：操作epoll实例的文件描述符。
+	
+  作用：
+    - 在内核区创建一个 epoll，包括两部分数据结构：
+      - 存储需要检测的文件描述符的信息（红黑树）
+      - 就绪列表，存放检测到 I/O 操作的文件描述符信息（双向链表）
 */
 ```
 
 
 
 ```c
-typedef union epoll_data {
-void *ptr;
-int fd;
-uint32_t u32;
-uint64_t u64;
-} epoll_data_t;
 struct epoll_event {
-uint32_t events; /* Epoll events */
-epoll_data_t data; /* User data variable */
+    uint32_t events; 	// 要检测的事件
+    epoll_data_t data; 	// 要检测的文件描述符
 };
-常见的Epoll检测事件：
-- EPOLLIN
-- EPOLLOUT
-- EPOLLERR
-// 对epoll实例进行管理：添加文件描述符信息，删除信息，修改信息
+/*
+  常见的 Epoll 检测事件 events：
+	- EPOLLIN 检测可读事件
+	- EPOLLOUT 检测可写事件
+	- EPOLLERR 检测发生错误
+*/
+
+typedef union epoll_data {
+    void *ptr;
+    int fd;
+    uint32_t u32;
+    uint64_t u64;
+} epoll_data_t;
+
+
 int epoll_ctl(int epfd, int op, int fd, struct epoll_event *event);
 /*
   参数：
-    - epfd : epoll实例对应的文件描述符
-    - op : 要进行什么操作
-        EPOLL_CTL_ADD: 添加
-        EPOLL_CTL_MOD: 修改
-        EPOLL_CTL_DEL: 删除
-    - fd : 要检测的文件描述符
-    - event : 检测文件描述符什么事情
+    - epfd：epoll 实例对应的文件描述符
+    - op：要进行什么操作
+      - EPOLL_CTL_ADD: 添加
+      - EPOLL_CTL_MOD: 修改
+      - EPOLL_CTL_DEL: 删除，event 参数为 NULL。
+    - fd：要检测的文件描述符
+    - event：检测文件描述符什么事情
+    
+  作用：
+    - 对 epoll 实例进行管理：添加、删除、修改文件描述符信息。（添加到内核中的红黑树上）
 */
-// 检测函数
+
 int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int
 timeout);
 /*
   参数：
-	- epfd : epoll实例对应的文件描述符
-    - events : 传出参数，保存了发送了变化的文件描述符的信息
-    - maxevents : 第二个参数结构体数组的大小
-    - timeout : 阻塞时间
-        - 0 : 不阻塞
-        - -1 : 阻塞，直到检测到fd数据发生变化，解除阻塞
-        - > 0 : 阻塞的时长（毫秒）
-    - 返回值：
-        - 成功，返回发送变化的文件描述符的个数 > 0
-        - 失败 -1
+	- epfd：epoll 实例对应的文件描述符
+    - events：传出参数，保存检测到 I/O 事件的的文件描述符的信息的数组。（传出内核中双向链表中的信息）
+    - maxevents：events 结构体数组的大小
+    - timeout：阻塞时间
+        - 0：不阻塞
+        - -1：阻塞，直到检测到 I/O 事件，解除阻塞。
+        - > 0：阻塞的时长（毫秒）
+        
+  返回值：
+    - -1：调用失败，并设置 errno。
+      - errno = EINTR：调用被信号终端，可以选择重启 epoll_wait
+      - errno = EBADF：epfd 不是有效的 epoll 文件描述符
+      - ...
+    - > 0：返回发生变化的文件描述符的数量
+        
+  作用：
+  	- 检测 epoll 实例中文件描述符的 I/O 事件。
 */
 ```
 
-`epoll` 的两种工作模式
+举个例子
+
+```c
+#include <stdio.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/epoll.h>
+
+int main()
+{
+    // create epoll
+    int lfd = socket(PF_INET, SOCK_STREAM, 0);
+    struct sockaddr_in saddr;
+    saddr.sin_port = htons(9999);
+    saddr.sin_family = AF_INET;
+    saddr.sin_addr.s_addr = INADDR_ANY;
+
+    // bind
+    bind(lfd, (struct sockaddr *)&saddr, sizeof(saddr));
+
+    // listen
+    listen(lfd, 8);
+
+    // epoll 实现 多路复用
+    // create epoll
+    int epfd = epoll_create(2);
+
+    struct epoll_event epev;
+    epev.events = EPOLLIN;
+    epev.data.fd = lfd;     // 检测监听文件描述符上的可读事件（即有新的客户端请求连接服务端）
+    // 在 epoll 实例中添加要检测的文件描述符以及要检测的事件
+    epoll_ctl(epfd, EPOLL_CTL_ADD, lfd, &epev);
+
+    struct epoll_event epevs[1024];     // 保存 epoll_wait 检测到的事件的相关信息
+
+    while(1)
+    {
+        int ret = epoll_wait(epfd, epevs, 1024, -1);   // -1 表示阻塞等待事件
+        if(ret == -1)     // 调用失败
+        {
+            perror("epoll_wait");
+            exit(-1);
+        }
+
+        // 遍历检测到的时间（epoll_wait 存储在 epevs 中了）
+        for(int i = 0; i < ret; i++)
+        {
+            int curfd = epevs[i].data.fd;
+
+            if(curfd == lfd)    // 有新的客户端请求连接
+            {
+                struct sockaddr_in cliaddr;
+                int len = sizeof(cliaddr);
+                int cfd = accept(lfd, (struct sockaddr*)&cliaddr, &len);    // 连接新客户端
+
+                epev.events = EPOLLIN;
+                epev.data.fd = cfd;
+                epoll_ctl(epfd, EPOLL_CTL_ADD, cfd, &epev);     // 将 cfd 添加到 epoll 实例中
+            }
+            else
+            {
+                // 已连接客户端发来数据(因为只检测了 EPOLLIN 事件)
+                char buf[1024] = {0};
+                int len = read(curfd, buf, sizeof(buf));
+                if(len == -1)
+                {
+                    perror("read");
+                    exit(-1);
+                }
+                else if(len == 0)
+                {
+                    // 已连接的客户端断开连接，将其从 epoll 实例中删去，并关闭连接文件描述符
+                    printf("client closed...\n");
+                    epev.data.fd = curfd;
+                    epoll_ctl(epfd, EPOLL_CTL_DEL, curfd, NULL);
+                    close(curfd);
+                }
+                else if(len > 0)
+                {
+                    printf("read buf = %s\n", buf);
+                    write(curfd, buf, strlen(buf) + 1);
+                }
+            }
+        }
+    }
+    close(lfd);
+    close(epfd);
+    return 0;
+}
+```
+
+`epoll` 的优点：
+
+- 不存在用户态到内核态的拷贝，效率高。只在检测到 I/O 操作后，从内核态向用户态返回检测到 I/O 操作的文件描述符。
+
+#### `epoll` 的两种工作模式
 
 - LT 模式（水平触发）
 
@@ -8267,7 +8404,7 @@ timeout);
 
   - epoll 只在文件描述符状态发生变化时才通知程序。即使程序读写了一部分数据，epoll 也不会再次通知程序。
 
-  - 程序需要及时处理事件。
+  - 程序需要及时处理事件。**（监听文件描述符一般不设置为边沿触发）**
 
 ### t. 广播
 
@@ -8326,6 +8463,21 @@ timeout);
 ## HTTP 请求报文格式
 
 ![image-20231229143836923](./assets/image-20231229143836923.png)
+
+
+
+```
+GET / HTTP/1.1
+Host: 101.76.210.102:10001
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7
+Accept-Encoding: gzip, deflate
+Accept-Language: zh-CN,zh;q=0.9
+Cache-Control: max-age=0
+Upgrade-Insecure-Requests: 1
+```
+
+
 
 ## HTTP 响应报文格式
 
@@ -8388,9 +8540,9 @@ I/O 处理单元是服务器管理客户连接的模块。它通常要完成以�
 
 ## Reactor 模式
 
-要求主线程（I/O处理单元）只负责监听文件描述符上是否有事件发生，有的话就立即将该事件通知工作 线程（逻辑单元），将 socket 可读可写事件放入请求队列，交给工作线程处理。除此之外，主线程不做任何其他实质性的工作。读写数据，接受新的连接，以及处理客户请求均在工作线程中完成。
+要求主线程（I/O处理单元）只负责监听文件描述符上是否有事件发生，有的话就立即将该事件通知工作线程（逻辑单元），将 socket 可读可写事件放入请求队列，交给工作线程处理。除此之外，主线程不做任何其他实质性的工作。读写数据，接受新的连接，以及处理客户请求均在工作线程中完成。
 
-使用同步 I/O（以 epoll_wait 为例）实现的 Reactor 模式的工作流程是：
+使用同步 I/O（以 `epoll_wait` 为例）实现的 Reactor 模式的工作流程是：
 
 1. 主线程往 epoll 内核事件表中注册 socket 上的读就绪事件。 
 2. 主线程调用 epoll_wait 等待 socket 上有数据可读。 
@@ -8404,9 +8556,9 @@ I/O 处理单元是服务器管理客户连接的模块。它通常要完成以�
 
 ## Proactor 模式
 
-Proactor 模式将所有 I/O 操作都交给主线程和内核来处理（进行读、写），工作线程仅仅负责业务逻 辑。使用异步 I/O 模型（以 aio_read 和 aio_write 为例）实现的 Proactor 模式的工作流程是：
+Proactor 模式将所有 I/O 操作都交给主线程和内核来处理（进行读、写），工作线程仅仅负责业务逻辑。使用异步 I/O 模型（以 aio_read 和 aio_write 为例）实现的 Proactor 模式的工作流程是：
 
-1. 主线程调用 aio_read 函数向内核注册 socket 上的读完成事件，并告诉内核用户读缓冲区的位置， 以及读操作完成时如何通知应用程序（这里以信号为例）。 
+1. 主线程调用 `aio_read` 函数向内核注册 socket 上的读完成事件，并告诉内核用户读缓冲区的位置， 以及读操作完成时如何通知应用程序（这里以信号为例）。 
 2. 主线程继续处理其他逻辑。 
 3. 当 socket 上的数据被读入用户缓冲区后，内核将向应用程序发送一个信号，以通知应用程序数据 已经可用。
 4. 应用程序预先定义好的信号处理函数选择一个工作线程来处理客户请求。工作线程处理完客户请求 后，调用 aio_write 函数向内核注册 socket 上的写完成事件，并告诉内核用户写缓冲区的位置，以 及写操作完成时如何通知应用程序。 
