@@ -6204,7 +6204,7 @@ int main()
 
   <img src="./assets/image-20231127131815774.png" alt="image-20231127131815774" style="zoom:80%;" />
 
-
+临界资源执行时间越短，加锁效率越高。
 
 ### b. 互斥锁
 
@@ -7660,12 +7660,59 @@ int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 */
 ```
 
-#### vii). read & write
+#### vii). `recv` & `send`
 
 ```c
-ssize_t write(int fd, const void *buf, size_t count); // 写数据
-ssize_t read(int fd, void *buf, size_t count); // 读数据
+#include <sys/types.h>
+#include <sys/socket.h>
+
+ssize_t recv(int sockfd, void *buf, size_t len, int flags); 	// 读数据
+/*
+  参数：
+    - sockfd：socket 文件描述符
+    - buf：指向存放读取数据的缓冲区的指针
+    - len：缓冲区的大小
+    - flags：
+      - 0：默认情况。
+      - MSG_OOB：接收带外数据。
+      - MSG_PEEK：仅查看数据，不从输入队列中删除。
+  
+  返回值：
+    - > 0：成功读取数据，表示读取到的字节数；
+    - = 0：连接已关闭（TCP连接中）或读取到 0 个字节数据。
+    - = -1：调用失败，设置 errno。
+      - EAGAIN / EWOULDBLOCK：当 socket 设置为非阻塞时，如果对方没有传来可用数据，或指定时间内没有接收到数据，会报这两个错。
+    
+  作用：
+    - 从文件描述符中读取数据，用于 socket。
+*/
+
+ssize_t send(int sockfd, const void *buf, size_t len, int flags); 	// 写数据
+/*
+  参数：
+    - sockfd：socket 文件描述符
+    - buf：指向要发送数据的缓冲区的指针
+    - len：缓冲区的大小
+    - flags：
+      - 0：默认情况
+      - MSG_NOSIGNAL：向已断开连接的 socket 发送数据,防止系统发送 SIGPIPE 信号。
+  
+  返回值：
+     - > 0：成功发送数据，表示发送的字节数；
+     - = -1：调用失败，设置 errno。
+  
+  作用：
+    - 向 socket 发送数据。
+*/
 ```
+
+#### recv 系统调用执行流程
+
+1. 内核检查套接字状态，确保套接字是有效的、已连接的、可以接收数据的。
+2. 如果套接字上没有可用的数据，并且套接字是阻塞的，recv 会阻塞等待数据到达；如果套接字是非阻塞的，系统返回错误码 `EAGAIN` 或 `EWOULDBLOCK` 表示当前没有数据可用。
+3. 一旦有数据到达，内核将数据从套接字接收缓冲区复制到调用进程提供的缓冲区 buf 中。
+4. 更新套接字的装填。
+5. 返回接收的字节数。
 
 vii). shutdown
 
@@ -8245,6 +8292,7 @@ struct epoll_event {
 	- EPOLLIN 检测可读事件
 	- EPOLLOUT 检测可写事件
 	- EPOLLERR 检测发生错误
+	- EPOLLONESHOT：在使用 epoll 边沿触发（ET）模式时，确保在处理完当前事件后，不再监听该文件描述符的其他事件，直到 epoll_ctl 重新设置监听。（防止多个线程同时处理同一个文件描述符上的事件）
 */
 
 typedef union epoll_data {
@@ -8475,6 +8523,7 @@ Accept-Encoding: gzip, deflate
 Accept-Language: zh-CN,zh;q=0.9
 Cache-Control: max-age=0
 Upgrade-Insecure-Requests: 1
+
 ```
 
 
@@ -8509,6 +8558,32 @@ Upgrade-Insecure-Requests: 1
 ![image-20231229144711030](./assets/image-20231229144711030.png)
 
 虽然 RFC 2616 中已经推荐了描述状态的短语，例如"200 OK"，"404 Not Found"，但是WEB开发者仍 然能够自行决定采用何种短语，用以显示本地化的状态描述或者自定义信息。
+
+
+
+### HTTP/1.1，HTTP/2，HTTP/3
+
+#### HTTP/1.1
+
+只有完成了一次请求后，才能进行下一次请求。
+
+![image-20240121160530888](./assets/image-20240121160530888.png)
+
+![image-20240121160620862](./assets/image-20240121160620862.png)
+
+HTTP 队头阻塞
+
+管线化技术：
+
+#### HTTP/2
+
+多路复用
+
+报文首部也压缩
+
+HPACK 算法
+
+#### HTTP/3 
 
 
 
@@ -8585,6 +8660,24 @@ Proactor 模式将所有 I/O 操作都交给主线程和内核来处理（进行
 
 # 线程池
 
+对于单生产者-多消费者模型来说，不希望耗时长或者阻塞的任务影响生产者的效率，因此将任务抛出。
+
+消息队列实现解耦。（临界资源执行时间越短，加锁效率越高，消息队列就是临界资源）
+
+
+
+线程调度（管理）：根据队列状态进行管理。队列内容从无到有：唤醒休眠线程；队列内容从有到无，让线程休眠。
+
+![image-20240116155037376](./assets/image-20240116155037376.png)
+
+![image-20240116155209521](./assets/image-20240116155209521.png)
+
+
+
+多生产者 - 多消费者场景
+
+
+
 - 线程池是由服务器预先创建的一组子线程，线程池中的线程数量一般和 CPU （核）数量差不多。线程池中的所有子线程都运行相同的代码。
 - 当有新任务到来时，主线程将通过某种方式选择线程池中的某一个子线程为之服务。（比动态地创建新子线程的代价小）
 - 主线程选择子线程的方式：
@@ -8595,6 +8688,10 @@ Proactor 模式将所有 I/O 操作都交给主线程和内核来处理（进行
 <img src="./assets/image-20240103093314405.png" alt="image-20240103093314405"  />
 
 
+
+## workflow
+
+##  
 
 # 有限状态机
 
@@ -8784,3 +8881,21 @@ restrict 修饰符告诉编译器指针是访问对象的唯一且主要的途�
 
 - 别名只有多个指针指向同一块内存区域。
 - 使用 `restrict` 关键字时，应确保不会破坏其约定，即确保在任何时刻，通过 `restrict` 修饰的指针是访问对象的唯一途径。否则，程序行为将是未定义的。
+
+## 8. strpbrk(char* str1, char* str2)
+
+C 标准库 <string.h> 中提供的一个函数，用于在 str2 中寻找 **str1中任意一个字符** 第一次出现的字符，如果没有，则返回 NULL。注意：只返回第一个出现的字符，不返回位置。
+
+## 9. strcasecmp
+
+不考虑大小写，比较两个字符串是否相等。
+
+## 10. strncasecmp
+
+比较字符串 `s1` 和 `s2` 的前 `n` 个字符是否相等，不考虑大小写。
+
+## 11. strchr
+
+用于在字符串中查找 **指定字符** 的第一个匹配位置.
+
+## 12. strspn()

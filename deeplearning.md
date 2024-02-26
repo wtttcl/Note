@@ -99,6 +99,79 @@
 
 ---
 
+### 2. string
+
+#### a. `string.strip()` - 删除字符串 `string` 的首尾空格
+
+```
+message = message.strip()                      # 删除首尾空格
+```
+
+
+
+#### b. `" ".join(list[string])` - 用 `""` 中的字符拼接字符串列表，返回字符串
+
+```
+# 字符串列表
+words = ["apple", "banana", "orange"]
+
+# 在每个字符串之间插入逗号
+result = ",".join(words)
+
+# 输出结果
+print(result) 	# "apple,banana,orange"
+```
+
+#### `string[::-1]` - 反转字符串
+
+`[::-1]` 是切片（slice）的语法，用于指定切片的开始、结束和步长。在这个情况下，开始和结束都未指定，而步长为 -1，表示从字符串的最后一个字符开始，逆向遍历整个字符串。
+
+```
+word = "Hello"
+reversed_word = word[::-1]
+
+print(reversed_word)
+# olleH
+```
+
+### 空列表、空字符串等 不等于 None，但是为 false。
+
+### list
+
+list.append(x) - 末尾追加一个元素
+
+list.insert(index, x)
+
+list.extned(list2)
+
+list.count(x)
+
+list.index(x)
+
+print(list)
+
+list.pop() - 删除并返回最后一个元素
+
+list.pop(index) - 删除并返回指定位置元素
+
+list.pop(x)
+
+list.remove(x)
+
+
+
+### `set`
+
+**无序 ** 的 **不重复** 元素序列。
+
+可以使用大括号 **{ }** 或者 **set()** 函数创建集合，注意：创建一个空集合必须用 **set()** 而不是 **{ }**，因为 **{ }** 是用来创建一个空字典。
+
+set.add
+
+set.update
+
+[set 用法](https://blog.csdn.net/devil_son1234/article/details/128930682)
+
 ### 2. `assert` 断言
 
 语法：
@@ -382,6 +455,52 @@ class Solution:
 ```
 
 ![image-20240109104417121](./assets/image-20240109104417121.png)
+
+### `enumerate`
+
+ 将一个可遍历的数据对象（如列表、元组或字符串）组合为一个索引序列，同时返回索引和元素。
+
+```
+enumerate(iterable, start=0)
+'''
+  iterable: 可迭代对象
+  start: 起始索引号，默认为 0
+'''
+```
+
+**举个例子：**
+
+```
+fruits = ["apple", "banana", "orange"]
+
+# 使用 enumerate 遍历列表，获取索引和元素
+for index, fruit in enumerate(fruits):
+    print(f"Index: {index}, Fruit: {fruit}")
+
+'''
+output:
+Index: 0, Fruit: apple
+Index: 1, Fruit: banana
+Index: 2, Fruit: orange 
+''' 
+```
+
+```
+fruits = ["apple", "banana", "orange"]
+
+# 使用 enumerate 遍历列表，设置起始索引为 1
+for index, fruit in enumerate(fruits, start=1):
+    print(f"Index: {index}, Fruit: {fruit}")
+
+'''
+output:
+Index: 1, Fruit: apple
+Index: 2, Fruit: banana
+Index: 3, Fruit: orange
+'''
+```
+
+
 
 ## B. 类内函数
 
