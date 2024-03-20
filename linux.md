@@ -6253,7 +6253,7 @@ int pthread_mutex_destroy(pthread_mutex_t *mutex);
     - 调用成功，返回 0；调用失败，返回错误号。
 
   作用：
-    - 释放互斥锁
+    - 回收互斥锁
 */
 ```
 
@@ -6744,7 +6744,7 @@ int main()
 **ii). 函数体**
 
 ```c
-sem_t 	// 互斥量结构体
+sem_t 	// 信号量结构体
 ```
 
 ```c
